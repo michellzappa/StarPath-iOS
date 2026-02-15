@@ -13,7 +13,7 @@ Reference
 Education
 
 ## Price
-Free
+€2.99 (Tier 3)
 
 ---
 

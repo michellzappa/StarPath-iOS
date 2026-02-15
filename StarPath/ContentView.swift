@@ -339,10 +339,53 @@ struct DateInputSheet: View {
     @Bindable var vm: StarPathViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var inputDate: Date = Date()
+    @State private var year: Int = Calendar.current.component(.year, from: Date())
+
+    private var displayYear: Int {
+        Calendar.current.component(.year, from: inputDate)
+    }
+
+    /// Rebuild inputDate with a new year, keeping month/day/time
+    private func setYear(_ newYear: Int) {
+        var cal = Calendar.current
+        cal.timeZone = .current
+        var comps = cal.dateComponents([.month, .day, .hour, .minute, .second], from: inputDate)
+        comps.year = newYear
+        if let d = cal.date(from: comps) {
+            inputDate = d
+            year = newYear
+        }
+    }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
+            VStack(spacing: 16) {
+                // Year selector
+                HStack(spacing: 20) {
+                    Button {
+                        setYear(year - 1)
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+
+                    Text(String(year))
+                        .font(.system(size: 28, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.white)
+                        .frame(minWidth: 80)
+
+                    Button {
+                        setYear(year + 1)
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                }
+                .padding(.top, 8)
+
+                // Month, day, time
                 DatePicker(
                     "Date & Time",
                     selection: $inputDate,
@@ -350,10 +393,16 @@ struct DateInputSheet: View {
                 )
                 .datePickerStyle(.wheel)
                 .labelsHidden()
+                .onChange(of: inputDate) { _, newVal in
+                    // Keep year stepper in sync if wheel changes date
+                    let newYear = Calendar.current.component(.year, from: newVal)
+                    if newYear != year { year = newYear }
+                }
 
                 // "Now" reset button
                 Button {
                     inputDate = Date()
+                    year = Calendar.current.component(.year, from: Date())
                 } label: {
                     Label("Reset to Now", systemImage: "clock.arrow.circlepath")
                         .font(.system(size: 15, weight: .medium))
@@ -389,6 +438,7 @@ struct DateInputSheet: View {
         }
         .onAppear {
             inputDate = vm.viewDate
+            year = Calendar.current.component(.year, from: vm.viewDate)
         }
     }
 }

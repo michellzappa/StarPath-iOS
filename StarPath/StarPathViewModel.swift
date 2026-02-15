@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import UIKit
 import Observation
 
 @Observable
@@ -25,6 +26,11 @@ final class StarPathViewModel {
     // MARK: - Timer
 
     private var timer: Timer?
+
+    // MARK: - Haptic: zodiac boundary crossing
+
+    private var lastSunSignIndex: Int?
+    private let haptic = UIImpactFeedbackGenerator(style: .light)
 
     // MARK: - Constants
 
@@ -89,6 +95,13 @@ final class StarPathViewModel {
             let dist = depth.distance(for: body.id)
             return PositionedBody(id: body.id, body: body, longitude: lon, relativeDegrees: rel, geocentricDistance: dist)
         }
+
+        // Haptic blip when Sun crosses a zodiac boundary
+        let sunSignIndex = Int(normalizeAngle(state.sun) / 30) % 12
+        if let prev = lastSunSignIndex, prev != sunSignIndex {
+            haptic.impactOccurred()
+        }
+        lastSunSignIndex = sunSignIndex
 
         // Update moon phase icon
         moonPhaseIcon = moonPhaseSymbol(for: viewDate)
