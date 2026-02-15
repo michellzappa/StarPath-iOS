@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Sun radial gradient -->
+    <radialGradient id="sunMain" cx="36%" cy="34%" r="50%">
+      <stop offset="0%" stop-color="#fff8d9"/>
+      <stop offset="100%" stop-color="#ffd98d"/>
+    </radialGradient>
+    <!-- Sun glow -->
+    <radialGradient id="sunGlowBig" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffce75" stop-opacity="0.6"/>
+      <stop offset="50%" stop-color="#ffce75" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#ffce75" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Axis fade -->
+    <linearGradient id="axFade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="white" stop-opacity="0"/>
+      <stop offset="15%" stop-color="white" stop-opacity="0.64"/>
+      <stop offset="85%" stop-color="white" stop-opacity="0.64"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="30"/>
+    </filter>
+  </defs>
+
+  <!-- Vertical axis -->
+  <line x1="512" y1="60" x2="512" y2="964" stroke="url(#axFade)" stroke-width="4"/>
+
+  <!-- Zodiac ticks -->
+  <line x1="484" y1="180" x2="540" y2="180" stroke="white" stroke-opacity="0.28" stroke-width="2"/>
+  <line x1="484" y1="340" x2="540" y2="340" stroke="white" stroke-opacity="0.28" stroke-width="2"/>
+  <line x1="484" y1="500" x2="540" y2="500" stroke="white" stroke-opacity="0.28" stroke-width="2"/>
+  <line x1="484" y1="660" x2="540" y2="660" stroke="white" stroke-opacity="0.28" stroke-width="2"/>
+  <line x1="484" y1="820" x2="540" y2="820" stroke="white" stroke-opacity="0.28" stroke-width="2"/>
+
+  <!-- Drift curves behind everything -->
+  <!-- Sol curve (golden) -->
+  <path d="
+    M 512,80
+    C 572,200 612,340 612,420
+    C 612,500 572,640 512,760
+    C 480,820 470,880 472,940
+  " fill="none" stroke="#ffd98d" stroke-opacity="0.35" stroke-width="5" stroke-linecap="round"/>
+  <!-- Moon curve (blue) -->
+  <path d="
+    M 540,80
+    C 470,180 430,300 450,420
+    C 470,540 560,620 580,740
+    C 590,800 560,880 540,940
+  " fill="none" stroke="#d6deFF" stroke-opacity="0.25" stroke-width="4" stroke-linecap="round"/>
+  <!-- Mars curve (red-orange) -->
+  <path d="
+    M 490,80
+    C 530,200 580,340 570,460
+    C 560,580 500,680 480,780
+    C 470,840 475,900 480,940
+  " fill="none" stroke="#ffb6a2" stroke-opacity="0.25" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Sun glow halo -->
+  <circle cx="512" cy="512" r="140" fill="url(#sunGlowBig)" filter="url(#glow)"/>
+
+  <!-- Sun body -->
+  <circle cx="512" cy="512" r="72" fill="url(#sunMain)"/>
+  <circle cx="512" cy="512" r="72" fill="none" stroke="#ffd98d" stroke-opacity="0.3" stroke-width="4"/>
+
+  <!-- Planets on axis -->
+  <!-- Jupiter (above sun) -->
+  <circle cx="512" cy="260" r="28" fill="#706150" stroke="#f9d7b1" stroke-opacity="0.5" stroke-width="2"/>
+
+  <!-- Moon (near sun) -->
+  <circle cx="512" cy="395" r="28" fill="#606375" stroke="#d6deFF" stroke-opacity="0.5" stroke-width="2"/>
+
+  <!-- Venus (below sun) -->
+  <circle cx="512" cy="640" r="28" fill="#73606a" stroke="#ffd6ea" stroke-opacity="0.5" stroke-width="2"/>
+
+  <!-- Mars (further below) -->
+  <circle cx="512" cy="770" r="28" fill="#735249" stroke="#ffb6a2" stroke-opacity="0.5" stroke-width="2"/>
+
+  <!-- Saturn (far below) -->
+  <circle cx="512" cy="870" r="28" fill="#73684b" stroke="#ffe8a7" stroke-opacity="0.5" stroke-width="2"/>
+</svg>

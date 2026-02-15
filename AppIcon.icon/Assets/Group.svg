@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="438px" height="206px" viewBox="0 0 438 206" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Group</title>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" stroke-linecap="round">
+        <g id="drift-curve" transform="translate(-37, -153)">
+            <g id="Group" transform="translate(256, 256) rotate(-90) translate(-256, -256)translate(0, 0)">
+                <path d="M256,40 C316,80 356,140 356,180 C356,220 316,280 256,320 C196,360 156,420 156,460 C156,468 158,472 160,472" id="Path" stroke-opacity="0.42" stroke="#FFD98D" stroke-width="4.5"></path>
+                <path d="M280,40 C220,100 180,160 200,220 C220,280 300,320 320,380 C340,440 300,460 280,472" id="Path" stroke-opacity="0.3" stroke="#D6DEFF" stroke-width="3.5"></path>
+                <path d="M240,40 C260,100 320,160 330,220 C340,280 300,340 270,380 C240,420 230,450 235,472" id="Path" stroke-opacity="0.3" stroke="#FFB6A2" stroke-width="3"></path>
+            </g>
+        </g>
+    </g>
+</svg>

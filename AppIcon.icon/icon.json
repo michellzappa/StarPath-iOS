@@ -32,13 +32,13 @@
         },
         {
           "glass" : false,
-          "image-name" : "drift-curve.svg",
-          "name" : "drift-curve",
+          "image-name" : "Group.svg",
+          "name" : "Group",
           "position" : {
             "scale" : 2.5,
             "translation-in-points" : [
-              -150.12267397244864,
-              0
+              0,
+              152.77599798194728
             ]
           }
         }

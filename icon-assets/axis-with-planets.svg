@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Sun radial gradient -->
+    <radialGradient id="sunG" cx="36%" cy="34%" r="50%">
+      <stop offset="0%" stop-color="#fff8d9"/>
+      <stop offset="100%" stop-color="#ffd98d"/>
+    </radialGradient>
+    <!-- Axis fade gradient -->
+    <linearGradient id="axisFade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="white" stop-opacity="0"/>
+      <stop offset="20%" stop-color="white" stop-opacity="0.64"/>
+      <stop offset="80%" stop-color="white" stop-opacity="0.64"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+    <!-- Planet darkened fill helper: each planet uses color mixed 55% toward black -->
+  </defs>
+
+  <!-- Vertical axis line -->
+  <line x1="256" y1="30" x2="256" y2="482" stroke="url(#axisFade)" stroke-width="3"/>
+
+  <!-- Zodiac tick marks (a few representative ones) -->
+  <line x1="242" y1="120" x2="270" y2="120" stroke="white" stroke-opacity="0.28" stroke-width="1.5"/>
+  <line x1="242" y1="210" x2="270" y2="210" stroke="white" stroke-opacity="0.28" stroke-width="1.5"/>
+  <line x1="242" y1="300" x2="270" y2="300" stroke="white" stroke-opacity="0.28" stroke-width="1.5"/>
+  <line x1="242" y1="390" x2="270" y2="390" stroke="white" stroke-opacity="0.28" stroke-width="1.5"/>
+
+  <!-- Sun (center of chart, largest body) -->
+  <circle cx="256" cy="256" r="40" fill="url(#sunG)"/>
+  <circle cx="256" cy="256" r="40" fill="none" stroke="#ffd98d" stroke-opacity="0.3" stroke-width="3"/>
+
+  <!-- Moon — color: #d6deFF, darkened fill: mix 55% black → ~#606375 -->
+  <circle cx="256" cy="185" r="16" fill="#606375" stroke="#d6deFF" stroke-opacity="0.5" stroke-width="1.5"/>
+
+  <!-- Mercury — color: #c8f5ff, darkened: ~#5a6e72 -->
+  <circle cx="256" cy="230" r="16" fill="#5a6e72" stroke="#c8f5ff" stroke-opacity="0.5" stroke-width="1.5"/>
+
+  <!-- Venus — color: #ffd6ea, darkened: ~#73606a -->
+  <circle cx="256" cy="290" r="16" fill="#73606a" stroke="#ffd6ea" stroke-opacity="0.5" stroke-width="1.5"/>
+
+  <!-- Mars — color: #ffb6a2, darkened: ~#735249 -->
+  <circle cx="256" cy="350" r="16" fill="#735249" stroke="#ffb6a2" stroke-opacity="0.5" stroke-width="1.5"/>
+
+  <!-- Jupiter — color: #f9d7b1, darkened: ~#706150 -->
+  <circle cx="256" cy="140" r="16" fill="#706150" stroke="#f9d7b1" stroke-opacity="0.5" stroke-width="1.5"/>
+
+  <!-- Saturn — color: #ffe8a7, darkened: ~#73684b -->
+  <circle cx="256" cy="410" r="16" fill="#73684b" stroke="#ffe8a7" stroke-opacity="0.5" stroke-width="1.5"/>
+</svg>

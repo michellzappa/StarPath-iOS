@@ -6,6 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2F66768F2F41CF7800C3BAD5 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2F66768E2F41CF7700C3BAD5 /* WidgetKit.framework */; };
+		2F6676912F41CF7800C3BAD5 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2F6676902F41CF7800C3BAD5 /* SwiftUI.framework */; };
+		2F66769E2F41CF7900C3BAD5 /* StarPathWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2F66768C2F41CF7700C3BAD5 /* StarPathWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		2F6676FD2F41DCD000C3BAD5 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 2F6676FC2F41DCD000C3BAD5 /* AppIcon.icon */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		2F0FC8082F410FDF00804DA9 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,13 +28,48 @@
 			remoteGlobalIDString = 2F0FC7F92F410FDD00804DA9;
 			remoteInfo = StarPath;
 		};
+		2F66769C2F41CF7900C3BAD5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2F0FC7F22F410FDD00804DA9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2F66768B2F41CF7700C3BAD5;
+			remoteInfo = StarPathWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		2F6676A32F41CF7900C3BAD5 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				2F66769E2F41CF7900C3BAD5 /* StarPathWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		2F0FC7FA2F410FDD00804DA9 /* StarPath.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StarPath.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2F0FC8072F410FDF00804DA9 /* StarPathTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StarPathTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2F0FC8112F410FDF00804DA9 /* StarPathUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StarPathUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2F66768C2F41CF7700C3BAD5 /* StarPathWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StarPathWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		2F66768E2F41CF7700C3BAD5 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		2F6676902F41CF7800C3BAD5 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		2F6676FC2F41DCD000C3BAD5 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		2F66769F2F41CF7900C3BAD5 /* Exceptions for "StarPathWidget" folder in "StarPathWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2F66768B2F41CF7700C3BAD5 /* StarPathWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		2F0FC7FC2F410FDD00804DA9 /* StarPath */ = {
@@ -43,6 +85,14 @@
 		2F0FC8142F410FDF00804DA9 /* StarPathUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = StarPathUITests;
+			sourceTree = "<group>";
+		};
+		2F6676922F41CF7800C3BAD5 /* StarPathWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2F66769F2F41CF7900C3BAD5 /* Exceptions for "StarPathWidget" folder in "StarPathWidgetExtension" target */,
+			);
+			path = StarPathWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -69,6 +119,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		2F6676892F41CF7700C3BAD5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2F6676912F41CF7800C3BAD5 /* SwiftUI.framework in Frameworks */,
+				2F66768F2F41CF7800C3BAD5 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -78,7 +137,10 @@
 				2F0FC7FC2F410FDD00804DA9 /* StarPath */,
 				2F0FC80A2F410FDF00804DA9 /* StarPathTests */,
 				2F0FC8142F410FDF00804DA9 /* StarPathUITests */,
+				2F6676922F41CF7800C3BAD5 /* StarPathWidget */,
+				2F66768D2F41CF7700C3BAD5 /* Frameworks */,
 				2F0FC7FB2F410FDD00804DA9 /* Products */,
+				2F6676FC2F41DCD000C3BAD5 /* AppIcon.icon */,
 			);
 			sourceTree = "<group>";
 		};
@@ -88,8 +150,18 @@
 				2F0FC7FA2F410FDD00804DA9 /* StarPath.app */,
 				2F0FC8072F410FDF00804DA9 /* StarPathTests.xctest */,
 				2F0FC8112F410FDF00804DA9 /* StarPathUITests.xctest */,
+				2F66768C2F41CF7700C3BAD5 /* StarPathWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		2F66768D2F41CF7700C3BAD5 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				2F66768E2F41CF7700C3BAD5 /* WidgetKit.framework */,
+				2F6676902F41CF7800C3BAD5 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -102,10 +174,12 @@
 				2F0FC7F62F410FDD00804DA9 /* Sources */,
 				2F0FC7F72F410FDD00804DA9 /* Frameworks */,
 				2F0FC7F82F410FDD00804DA9 /* Resources */,
+				2F6676A32F41CF7900C3BAD5 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				2F66769D2F41CF7900C3BAD5 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				2F0FC7FC2F410FDD00804DA9 /* StarPath */,
@@ -163,6 +237,28 @@
 			productReference = 2F0FC8112F410FDF00804DA9 /* StarPathUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		2F66768B2F41CF7700C3BAD5 /* StarPathWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2F6676A02F41CF7900C3BAD5 /* Build configuration list for PBXNativeTarget "StarPathWidgetExtension" */;
+			buildPhases = (
+				2F6676882F41CF7700C3BAD5 /* Sources */,
+				2F6676892F41CF7700C3BAD5 /* Frameworks */,
+				2F66768A2F41CF7700C3BAD5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				2F6676922F41CF7800C3BAD5 /* StarPathWidget */,
+			);
+			name = StarPathWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = StarPathWidgetExtension;
+			productReference = 2F66768C2F41CF7700C3BAD5 /* StarPathWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -184,6 +280,9 @@
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = 2F0FC7F92F410FDD00804DA9;
 					};
+					2F66768B2F41CF7700C3BAD5 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 				};
 			};
 			buildConfigurationList = 2F0FC7F52F410FDD00804DA9 /* Build configuration list for PBXProject "StarPath" */;
@@ -203,6 +302,7 @@
 				2F0FC7F92F410FDD00804DA9 /* StarPath */,
 				2F0FC8062F410FDF00804DA9 /* StarPathTests */,
 				2F0FC8102F410FDF00804DA9 /* StarPathUITests */,
+				2F66768B2F41CF7700C3BAD5 /* StarPathWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -212,6 +312,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2F6676FD2F41DCD000C3BAD5 /* AppIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -223,6 +324,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		2F0FC80F2F410FDF00804DA9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2F66768A2F41CF7700C3BAD5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -253,6 +361,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		2F6676882F41CF7700C3BAD5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -265,6 +380,11 @@
 			isa = PBXTargetDependency;
 			target = 2F0FC7F92F410FDD00804DA9 /* StarPath */;
 			targetProxy = 2F0FC8122F410FDF00804DA9 /* PBXContainerItemProxy */;
+		};
+		2F66769D2F41CF7900C3BAD5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2F66768B2F41CF7700C3BAD5 /* StarPathWidgetExtension */;
+			targetProxy = 2F66769C2F41CF7900C3BAD5 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -400,11 +520,14 @@
 				DEVELOPMENT_TEAM = 992N457T8D;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Starpath;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.reference";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UILaunchScreen_UIColorName = LaunchBackgroundColor;
+				INFOPLIST_KEY_UILaunchStoryboardName = "";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -432,11 +555,14 @@
 				DEVELOPMENT_TEAM = 992N457T8D;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Starpath;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.reference";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UILaunchScreen_UIColorName = LaunchBackgroundColor;
+				INFOPLIST_KEY_UILaunchStoryboardName = "";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -538,6 +664,66 @@
 			};
 			name = Release;
 		};
+		2F6676A12F41CF7900C3BAD5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 992N457T8D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StarPathWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = StarPathWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = AestheticHermetics.StarPath.StarPathWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		2F6676A22F41CF7900C3BAD5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 992N457T8D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StarPathWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = StarPathWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = AestheticHermetics.StarPath.StarPathWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -573,6 +759,15 @@
 			buildConfigurations = (
 				2F0FC8222F410FDF00804DA9 /* Debug */,
 				2F0FC8232F410FDF00804DA9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2F6676A02F41CF7900C3BAD5 /* Build configuration list for PBXNativeTarget "StarPathWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2F6676A12F41CF7900C3BAD5 /* Debug */,
+				2F6676A22F41CF7900C3BAD5 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

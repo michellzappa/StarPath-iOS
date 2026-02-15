@@ -2,7 +2,8 @@
 //  StarPathWidgetControl.swift
 //  StarPathWidget
 //
-//  Created by Michell Zappa on 15/02/2026.
+//  Control Center / Lock Screen control showing the current Sun sign.
+//  Tapping opens the Starpath app.
 //
 
 import AppIntents
@@ -12,43 +13,31 @@ import WidgetKit
 struct StarPathWidgetControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(
-            kind: "AestheticHermetics.StarPath.StarPathWidget",
-            provider: Provider()
-        ) { value in
-            ControlWidgetToggle(
-                "Start Timer",
-                isOn: value,
-                action: StartTimerIntent()
-            ) { isRunning in
-                Label(isRunning ? "On" : "Off", systemImage: "timer")
+            kind: "AestheticHermetics.StarPath.StarPathControl"
+        ) {
+            ControlWidgetButton(action: OpenStarPathIntent()) {
+                let state = geocentricLongitudes(for: Date())
+                let sign = zodiacSign(fromLongitude: state.sun)
+
+                Label {
+                    Text("\(sign.glyph)\u{FE0E} \(sign.name)")
+                } icon: {
+                    Image(systemName: "sun.max.fill")
+                }
             }
         }
-        .displayName("Timer")
-        .description("A an example control that runs a timer.")
+        .displayName("Sun Sign")
+        .description("Shows the current Sun sign. Tap to open Starpath.")
     }
 }
 
-extension StarPathWidgetControl {
-    struct Provider: ControlValueProvider {
-        var previewValue: Bool {
-            false
-        }
+// MARK: - Open App Intent
 
-        func currentValue() async throws -> Bool {
-            let isRunning = true // Check if the timer is running
-            return isRunning
-        }
-    }
-}
-
-struct StartTimerIntent: SetValueIntent {
-    static let title: LocalizedStringResource = "Start a timer"
-
-    @Parameter(title: "Timer is running")
-    var value: Bool
+struct OpenStarPathIntent: AppIntent {
+    static let title: LocalizedStringResource = "Open Starpath"
+    static let openAppWhenRun: Bool = true
 
     func perform() async throws -> some IntentResult {
-        // Start / stop the timer based on `value`.
         return .result()
     }
 }

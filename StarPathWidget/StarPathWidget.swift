@@ -2,83 +2,402 @@
 //  StarPathWidget.swift
 //  StarPathWidget
 //
-//  Created by Michell Zappa on 15/02/2026.
+//  Home screen widget showing a horizontal zodiac strip with planet positions.
+//  Supports systemSmall, systemMedium, and systemLarge families.
 //
 
 import WidgetKit
 import SwiftUI
 
-struct Provider: TimelineProvider {
-    func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), emoji: "😀")
+// MARK: - Timeline Provider
+
+struct StarPathProvider: TimelineProvider {
+    func placeholder(in context: Context) -> StarPathEntry {
+        StarPathEntry(date: Date())
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        let entry = SimpleEntry(date: Date(), emoji: "😀")
-        completion(entry)
+    func getSnapshot(in context: Context, completion: @escaping (StarPathEntry) -> Void) {
+        completion(StarPathEntry(date: Date()))
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
-        var entries: [SimpleEntry] = []
+    func getTimeline(in context: Context, completion: @escaping (Timeline<StarPathEntry>) -> Void) {
+        var entries: [StarPathEntry] = []
 
-        // Generate a timeline consisting of five entries an hour apart, starting from the current date.
+        // Update every 15 minutes for 2 hours
         let currentDate = Date()
-        for hourOffset in 0 ..< 5 {
-            let entryDate = Calendar.current.date(byAdding: .hour, value: hourOffset, to: currentDate)!
-            let entry = SimpleEntry(date: entryDate, emoji: "😀")
-            entries.append(entry)
+        for minuteOffset in stride(from: 0, to: 120, by: 15) {
+            let entryDate = Calendar.current.date(byAdding: .minute, value: minuteOffset, to: currentDate)!
+            entries.append(StarPathEntry(date: entryDate))
         }
 
         let timeline = Timeline(entries: entries, policy: .atEnd)
         completion(timeline)
     }
-
-//    func relevances() async -> WidgetRelevances<Void> {
-//        // Generate a list containing the contexts this widget is relevant in.
-//    }
 }
 
-struct SimpleEntry: TimelineEntry {
+// MARK: - Timeline Entry
+
+struct StarPathEntry: TimelineEntry {
     let date: Date
-    let emoji: String
+
+    var positionedBodies: [WidgetPositionedBody] {
+        widgetPositionedBodies(for: date)
+    }
+
+    var sunSign: ZodiacSign {
+        let state = geocentricLongitudes(for: date)
+        return zodiacSign(fromLongitude: state.sun)
+    }
+
+    var moonPhaseIcon: String {
+        moonPhaseSymbol(for: date)
+    }
+
+    var formattedTimestamp: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        return "UTC " + formatter.string(from: date)
+    }
 }
 
-struct StarPathWidgetEntryView : View {
-    var entry: Provider.Entry
+// MARK: - Widget View
+
+struct StarPathWidgetEntryView: View {
+    var entry: StarPathEntry
+    @Environment(\.widgetFamily) var family
 
     var body: some View {
-        VStack {
-            Text("Time:")
-            Text(entry.date, style: .time)
+        switch family {
+        case .systemSmall:
+            smallWidget
+        case .systemMedium:
+            mediumWidget
+        case .systemLarge:
+            largeWidget
+        default:
+            mediumWidget
+        }
+    }
 
-            Text("Emoji:")
-            Text(entry.emoji)
+    // MARK: - Small Widget (Sun sign focus)
+
+    private var smallWidget: some View {
+        let sunBody = entry.positionedBodies.first { $0.id == "sun" }
+        let sign = entry.sunSign
+
+        return VStack(spacing: 6) {
+            // Sun glyph
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                Color(red: 1, green: 0.973, blue: 0.851),
+                                Color(red: 1, green: 0.851, blue: 0.553),
+                            ]),
+                            center: .init(x: 0.36, y: 0.34),
+                            startRadius: 0,
+                            endRadius: 22
+                        )
+                    )
+                    .frame(width: 44, height: 44)
+                    .shadow(color: Color(red: 1, green: 0.808, blue: 0.459).opacity(0.5), radius: 10)
+            }
+
+            // Sign info
+            Text("\(sign.glyph)\u{FE0E}")
+                .font(.system(size: 24))
+                .foregroundStyle(.white)
+
+            Text(sign.name)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.9))
+
+            if let sun = sunBody {
+                let degInSign = normalizeAngle(sun.longitude).truncatingRemainder(dividingBy: 30)
+                Text(String(format: "%.0f°", degInSign))
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.6))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Medium Widget (horizontal strip)
+
+    private var mediumWidget: some View {
+        VStack(spacing: 0) {
+            // Zodiac strip
+            GeometryReader { geo in
+                let size = geo.size
+
+                ZStack {
+                    // Axis line
+                    let midY = size.height / 2
+                    Canvas { context, canvasSize in
+                        let path = Path { p in
+                            p.move(to: CGPoint(x: 0, y: midY))
+                            p.addLine(to: CGPoint(x: canvasSize.width, y: midY))
+                        }
+                        context.stroke(
+                            path,
+                            with: .linearGradient(
+                                Gradient(colors: [.clear, Color.white.opacity(0.5), .clear]),
+                                startPoint: CGPoint(x: 0, y: midY),
+                                endPoint: CGPoint(x: canvasSize.width, y: midY)
+                            ),
+                            lineWidth: 1.5
+                        )
+                    }
+
+                    // Zodiac ticks and glyphs
+                    let sunLon = entry.positionedBodies.first { $0.id == "sun" }?.longitude ?? 0
+                    ForEach(0..<12, id: \.self) { k in
+                        let boundaryLon = Double(k) * 30
+                        let relBoundary = signedDelta(boundaryLon, sunLon)
+                        let frac = (relBoundary + 180) / 360
+                        let x = frac * size.width
+
+                        // Tick
+                        Rectangle()
+                            .fill(Color.white.opacity(0.2))
+                            .frame(width: 1, height: 18)
+                            .position(x: x, y: size.height / 2)
+
+                        // Sign glyph
+                        let signCenterLon = boundaryLon + 15
+                        let relCenter = signedDelta(signCenterLon, sunLon)
+                        let fracCenter = (relCenter + 180) / 360
+                        let xCenter = fracCenter * size.width
+
+                        Text("\(zodiacSigns[k].glyph)\u{FE0E}")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color.white.opacity(0.6))
+                            .position(x: xCenter, y: size.height / 2 - 22)
+                    }
+
+                    // Planet nodes
+                    ForEach(entry.positionedBodies) { pb in
+                        let x = pb.axisFraction * size.width
+                        let y = size.height / 2
+
+                        widgetPlanetNode(pb: pb)
+                            .position(x: x, y: y)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(maxHeight: .infinity)
+
+        }
+    }
+
+    // MARK: - Large Widget (strip + planet list)
+
+    private var largeWidget: some View {
+        VStack(spacing: 8) {
+            // Title
+            HStack {
+                Text("Starpath")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+                Spacer()
+            }
+            .padding(.horizontal, 4)
+
+            // Zodiac strip (same as medium)
+            GeometryReader { geo in
+                let size = geo.size
+
+                ZStack {
+                    let midY = size.height / 2
+                    Canvas { context, canvasSize in
+                        let path = Path { p in
+                            p.move(to: CGPoint(x: 0, y: midY))
+                            p.addLine(to: CGPoint(x: canvasSize.width, y: midY))
+                        }
+                        context.stroke(
+                            path,
+                            with: .linearGradient(
+                                Gradient(colors: [.clear, Color.white.opacity(0.5), .clear]),
+                                startPoint: CGPoint(x: 0, y: midY),
+                                endPoint: CGPoint(x: canvasSize.width, y: midY)
+                            ),
+                            lineWidth: 1.5
+                        )
+                    }
+
+                    let sunLon = entry.positionedBodies.first { $0.id == "sun" }?.longitude ?? 0
+                    ForEach(0..<12, id: \.self) { k in
+                        let boundaryLon = Double(k) * 30
+                        let relBoundary = signedDelta(boundaryLon, sunLon)
+                        let frac = (relBoundary + 180) / 360
+                        let x = frac * size.width
+
+                        Rectangle()
+                            .fill(Color.white.opacity(0.2))
+                            .frame(width: 1, height: 18)
+                            .position(x: x, y: size.height / 2)
+
+                        let signCenterLon = boundaryLon + 15
+                        let relCenter = signedDelta(signCenterLon, sunLon)
+                        let fracCenter = (relCenter + 180) / 360
+                        let xCenter = fracCenter * size.width
+
+                        Text("\(zodiacSigns[k].glyph)\u{FE0E}")
+                            .font(.system(size: 16))
+                            .foregroundColor(Color.white.opacity(0.6))
+                            .position(x: xCenter, y: size.height / 2 - 26)
+                    }
+
+                    ForEach(entry.positionedBodies) { pb in
+                        let x = pb.axisFraction * size.width
+                        let y = size.height / 2
+
+                        widgetPlanetNode(pb: pb)
+                            .position(x: x, y: y)
+                    }
+                }
+            }
+            .frame(height: 80)
+
+            // Planet list
+            VStack(spacing: 3) {
+                ForEach(entry.positionedBodies) { pb in
+                    let sign = zodiacSign(fromLongitude: pb.longitude)
+                    let degInSign = normalizeAngle(pb.longitude).truncatingRemainder(dividingBy: 30)
+
+                    HStack(spacing: 8) {
+                        Group {
+                            if pb.id == "moon" {
+                                Image(systemName: entry.moonPhaseIcon)
+                                    .font(.system(size: 14))
+                            } else {
+                                Text("\(pb.body.symbol)\u{FE0E}")
+                                    .font(.system(size: 15))
+                            }
+                        }
+                        .foregroundStyle(pb.body.color)
+                        .frame(width: 20)
+
+                        Text(pb.body.name)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .frame(width: 60, alignment: .leading)
+
+                        Text("\(sign.glyph)\u{FE0E}")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.white.opacity(0.7))
+
+                        Text(sign.name)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.white.opacity(0.5))
+
+                        Spacer()
+
+                        Text(String(format: "%.0f°", degInSign))
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
+                    .padding(.horizontal, 4)
+                }
+            }
+
+            Spacer()
+        }
+    }
+
+    // MARK: - Widget Planet Node
+
+    @ViewBuilder
+    private func widgetPlanetNode(pb: WidgetPositionedBody) -> some View {
+        if pb.body.isSun {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 1, green: 0.973, blue: 0.851),
+                            Color(red: 1, green: 0.851, blue: 0.553),
+                        ]),
+                        center: .init(x: 0.36, y: 0.34),
+                        startRadius: 0,
+                        endRadius: 14
+                    )
+                )
+                .frame(width: 28, height: 28)
+                .shadow(color: Color(red: 1, green: 0.808, blue: 0.459).opacity(0.6), radius: 8)
+        } else {
+            let fillColor = pb.body.color.mix(with: .black, by: 0.55)
+            let isMoon = pb.id == "moon"
+            ZStack {
+                Circle()
+                    .fill(fillColor)
+                    .frame(width: 18, height: 18)
+                    .overlay(
+                        Circle()
+                            .stroke(pb.body.color.opacity(0.5), lineWidth: 0.8)
+                    )
+                    .shadow(color: pb.body.color.opacity(0.3), radius: 5)
+
+                if isMoon {
+                    Image(systemName: entry.moonPhaseIcon)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(pb.body.color)
+                        .shadow(color: .black.opacity(0.5), radius: 1, y: 0.5)
+                } else {
+                    Text("\(pb.body.symbol)\u{FE0E}")
+                        .font(.system(size: widgetSymbolSize(for: pb.body.symbol), weight: .bold))
+                        .foregroundColor(pb.body.color)
+                        .shadow(color: .black.opacity(0.5), radius: 1, y: 0.5)
+                }
+            }
+        }
+    }
+
+    /// Normalize widget symbol sizes so all glyphs appear visually equal
+    private func widgetSymbolSize(for symbol: String) -> CGFloat {
+        switch symbol {
+        case "☽": return 13
+        case "☿": return 12
+        case "♄": return 12
+        default:  return 11
         }
     }
 }
+
+// MARK: - Widget Configuration
 
 struct StarPathWidget: Widget {
     let kind: String = "StarPathWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: Provider()) { entry in
-            if #available(iOS 17.0, *) {
-                StarPathWidgetEntryView(entry: entry)
-                    .containerBackground(.fill.tertiary, for: .widget)
-            } else {
-                StarPathWidgetEntryView(entry: entry)
-                    .padding()
-                    .background()
-            }
+        StaticConfiguration(kind: kind, provider: StarPathProvider()) { entry in
+            StarPathWidgetEntryView(entry: entry)
+                .containerBackground(Color.black, for: .widget)
         }
-        .configurationDisplayName("My Widget")
-        .description("This is an example widget.")
+        .configurationDisplayName("Starpath")
+        .description("Live zodiac chart showing planetary positions.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
+
+// MARK: - Previews
 
 #Preview(as: .systemSmall) {
     StarPathWidget()
 } timeline: {
-    SimpleEntry(date: .now, emoji: "😀")
-    SimpleEntry(date: .now, emoji: "🤩")
+    StarPathEntry(date: .now)
+}
+
+#Preview(as: .systemMedium) {
+    StarPathWidget()
+} timeline: {
+    StarPathEntry(date: .now)
+}
+
+#Preview(as: .systemLarge) {
+    StarPathWidget()
+} timeline: {
+    StarPathEntry(date: .now)
 }
