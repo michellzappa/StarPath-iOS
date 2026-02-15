@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Sun/Sol color: rgb(255,217,141) = #ffd98d -->
+    <!-- The drift curve is sin(x) mapped vertically, matching waveFromRel in TrendOverlayView -->
+  </defs>
+  <!-- Single sinusoidal drift curve (Sol's golden color at trend opacity) -->
+  <!-- Path traces a vertical sine wave: x varies sinusoidally, y goes top to bottom -->
+  <!-- sin wave centered at x=256, amplitude 100px, from y=40 to y=472 -->
+  <path d="
+    M 256,40
+    C 316,80 356,140 356,180
+    C 356,220 316,280 256,320
+    C 196,360 156,420 156,460
+    C 156,468 158,472 160,472
+  " fill="none" stroke="#ffd98d" stroke-opacity="0.42" stroke-width="4.5" stroke-linecap="round"/>
+
+  <!-- A second curve (Moon's blue) offset slightly -->
+  <path d="
+    M 280,40
+    C 220,100 180,160 200,220
+    C 220,280 300,320 320,380
+    C 340,440 300,460 280,472
+  " fill="none" stroke="#d6deFF" stroke-opacity="0.3" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- A third curve (Mars red-orange) -->
+  <path d="
+    M 240,40
+    C 260,100 320,160 330,220
+    C 340,280 300,340 270,380
+    C 240,420 230,450 235,472
+  " fill="none" stroke="#ffb6a2" stroke-opacity="0.3" stroke-width="3" stroke-linecap="round"/>
+</svg>
