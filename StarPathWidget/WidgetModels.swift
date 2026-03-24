@@ -69,10 +69,16 @@ struct WidgetPositionedBody: Identifiable {
     let body: WidgetCelestialBody
     let longitude: Double
     let relativeDegrees: Double
+    let geocentricDistance: Double
 
     /// Maps relative degrees to a 0...1 fraction along the horizontal axis
     var axisFraction: Double {
         (relativeDegrees + 180) / 360
+    }
+
+    /// Whether this body can ever transit in front of the Sun (interior bodies only)
+    var canTransitSun: Bool {
+        id == "mercury" || id == "venus" || id == "moon"
     }
 }
 
@@ -80,11 +86,34 @@ struct WidgetPositionedBody: Identifiable {
 
 func widgetPositionedBodies(for date: Date) -> [WidgetPositionedBody] {
     let state = geocentricLongitudes(for: date)
+    let depth = geocentricDepthContext(for: date)
     let sunLon = state.sun
 
     return widgetBodies.map { body in
         let lon = state.longitude(for: body.id)
         let rel = signedDelta(lon, sunLon)
-        return WidgetPositionedBody(id: body.id, body: body, longitude: lon, relativeDegrees: rel)
+        let dist = depth.distance(for: body.id)
+        return WidgetPositionedBody(id: body.id, body: body, longitude: lon, relativeDegrees: rel, geocentricDistance: dist)
     }
+}
+
+/// Depth-sort bodies for rendering: Sun at z=12, interior transiting bodies at z=14,
+/// all others at z=9. Matches the main app's ZodiacChartView.depthSortedBodies logic.
+func widgetDepthSortedBodies(_ bodies: [WidgetPositionedBody], sunLongitude: Double) -> [WidgetPositionedBody] {
+    let overlapThresholdDeg: Double = 7
+    let sunDist = bodies.first { $0.id == "sun" }?.geocentricDistance ?? 1
+
+    return bodies
+        .map { pb -> (body: WidgetPositionedBody, zOrder: Int) in
+            if pb.body.isSun {
+                return (pb, 12)
+            }
+            let nearSun = abs(signedDelta(pb.longitude, sunLongitude)) <= overlapThresholdDeg
+            if nearSun && pb.canTransitSun && pb.geocentricDistance < sunDist {
+                return (pb, 14)
+            }
+            return (pb, 9)
+        }
+        .sorted { $0.zOrder < $1.zOrder }
+        .map(\.body)
 }

@@ -14,6 +14,8 @@ struct ContentView: View {
     @State private var vm = StarPathViewModel()
     @State private var showSettings = false
     @State private var showDateInput = false
+    @State private var showEvents = false
+    @State private var showOnboarding = false
     @State private var selectedBodyId: String?
 
     // MARK: - Device orientation tracking (for text rotation only)
@@ -29,15 +31,8 @@ struct ContentView: View {
         }
     }
 
-    /// Whether the device is physically held in landscape
-    private var isLandscape: Bool {
-        deviceOrientation == .landscapeLeft || deviceOrientation == .landscapeRight
-    }
-
     // MARK: - Momentum scroll state
     @State private var dragAccumulator: CGFloat = 0
-    @State private var lastDragTime: Date = .now
-    @State private var lastDragDelta: CGFloat = 0
     @State private var momentumTimer: Timer?
 
     var body: some View {
@@ -90,17 +85,14 @@ struct ContentView: View {
                             showDateInput = true
                         } label: {
                             Text(vm.formattedTimestamp)
-                                .font(.system(size: 14, weight: .regular, design: .monospaced))
+                                .font(.system(size: 13, weight: .semibold, design: .monospaced))
                                 .tracking(0.6)
-                                .foregroundColor(Color(red: 0.71, green: 0.737, blue: 0.804))
+                                .foregroundStyle(.white)
                                 .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(Color.white.opacity(0.06))
-                                .cornerRadius(6)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
-                                )
+                                .frame(height: 34)
+                                .background(controlBackground)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .overlay(controlStroke)
                         }
                         .buttonStyle(.plain)
                         .rotationEffect(textRotation)
@@ -108,29 +100,36 @@ struct ContentView: View {
                         switch deviceOrientation {
                         case .landscapeLeft:
                             timestampView
-                                .position(x: geo.size.width - 24, y: geo.size.height / 2)
+                                .position(x: geo.size.width - 27, y: geo.size.height / 2)
                         case .landscapeRight:
                             timestampView
-                                .position(x: 24, y: geo.size.height / 2)
+                                .position(x: 27, y: geo.size.height / 2)
                         default:
                             timestampView
-                                .position(x: geo.size.width / 2, y: geo.size.height - 20)
+                                .position(x: geo.size.width / 2, y: geo.size.height - 27)
                         }
                     }
                 }
             }
             .padding(.horizontal, 8)
 
-            // Settings gear
+            // Corner controls
             VStack {
                 HStack {
                     settingsButton
                     Spacer()
+                    eventsButton
                 }
                 Spacer()
+                HStack(alignment: .bottom) {
+                    stepButton
+                    Spacer()
+                    nowButton
+                }
             }
             .padding(.top, 8)
-            .padding(.leading, 12)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 10)
 
             // Planet detail overlay (allowsHitTesting only on the card itself)
             if let bodyId = selectedBodyId,
@@ -159,6 +158,9 @@ struct ContentView: View {
         .statusBarHidden(true)
         .onAppear {
             UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+            if !UserDefaults.standard.bool(forKey: "hasSeenOnboarding") {
+                showOnboarding = true
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
             let orientation = UIDevice.current.orientation
@@ -174,10 +176,21 @@ struct ContentView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showEvents) {
+            EventsSheet(vm: vm)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
         .sheet(isPresented: $showDateInput) {
             DateInputSheet(vm: vm)
-                .presentationDetents([.medium])
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+        }
+        .fullScreenCover(isPresented: $showOnboarding) {
+            OnboardingView {
+                UserDefaults.standard.set(true, forKey: "hasSeenOnboarding")
+                showOnboarding = false
+            }
         }
     }
 
@@ -188,16 +201,74 @@ struct ContentView: View {
             showSettings.toggle()
         } label: {
             Image(systemName: "gearshape")
-                .font(.system(size: 16))
-                .foregroundColor(.white)
+                .font(.system(size: 15, weight: .medium))
                 .frame(width: 34, height: 34)
-                .background(Color.black.opacity(0.76))
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.white.opacity(0.28), lineWidth: 1)
-                )
         }
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
+        .background(controlBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(controlStroke)
+        .contentShape(.interaction, Rectangle().inset(by: -8))
+    }
+
+    private var eventsButton: some View {
+        Button {
+            vm.refreshEvents()
+            showEvents = true
+        } label: {
+            Image(systemName: "calendar")
+                .font(.system(size: 15, weight: .medium))
+                .frame(width: 34, height: 34)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
+        .background(controlBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(controlStroke)
+        .contentShape(.interaction, Rectangle().inset(by: -8))
+    }
+
+    private var stepButton: some View {
+        Button {
+            vm.cycleSelectedStep()
+        } label: {
+            Text(vm.selectedStep.shortLabel)
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .frame(minWidth: 46, minHeight: 34)
+                .padding(.horizontal, 6)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
+        .background(controlBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(controlStroke)
+        .contentShape(.interaction, Rectangle().inset(by: -8))
+    }
+
+    private var nowButton: some View {
+        Button {
+            vm.resetToNow()
+        } label: {
+            Image(systemName: "clock.arrow.circlepath")
+                .font(.system(size: 15, weight: .medium))
+                .frame(width: 34, height: 34)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
+        .background(controlBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(controlStroke)
+        .contentShape(.interaction, Rectangle().inset(by: -8))
+    }
+
+    private var controlBackground: some View {
+        Color.black.opacity(0.76)
+    }
+
+    private var controlStroke: some View {
+        RoundedRectangle(cornerRadius: 8)
+            .stroke(Color.white.opacity(0.28), lineWidth: 1)
     }
 
     // MARK: - Drag Gesture for Time Travel (with momentum)
@@ -223,14 +294,6 @@ struct ContentView: View {
                         vm.shiftTime(amount: direction, unit: vm.selectedStep)
                     }
                     dragAccumulator += CGFloat(steps) * stepThreshold
-                }
-
-                // Track velocity
-                let now = Date()
-                let dt = now.timeIntervalSince(lastDragTime)
-                if dt > 0 {
-                    lastDragDelta = unconsumed
-                    lastDragTime = now
                 }
             }
             .onEnded { value in
@@ -271,6 +334,8 @@ struct ContentView: View {
 struct SettingsSheet: View {
     @Bindable var vm: StarPathViewModel
     @Environment(\.openURL) private var openURL
+    @State private var showWidgetGuide = false
+    @State private var showOnboarding = false
 
     var body: some View {
         NavigationStack {
@@ -291,6 +356,23 @@ struct SettingsSheet: View {
                                 Text("\(sign.glyph) \(sign.name)").tag(sign.id)
                             }
                         }
+                    }
+                }
+
+                Section("Widgets") {
+                    Button("Widget Guide") {
+                        showWidgetGuide = true
+                    }
+                    Text("Add Starpath widgets for passive home and lock screen updates.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    Button {
+                        showOnboarding = true
+                    } label: {
+                        Label("Welcome Guide", systemImage: "sparkles")
                     }
                 }
 
@@ -330,6 +412,16 @@ struct SettingsSheet: View {
         .onChange(of: vm.options.showMoon) { _, _ in vm.update(); vm.saveSettings() }
         .onChange(of: vm.options.lockZodiac) { _, _ in vm.update(); vm.saveSettings() }
         .onChange(of: vm.options.centerSignIndex) { _, _ in vm.update(); vm.saveSettings() }
+        .sheet(isPresented: $showWidgetGuide) {
+            WidgetGuideSheet()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .fullScreenCover(isPresented: $showOnboarding) {
+            OnboardingView {
+                showOnboarding = false
+            }
+        }
     }
 }
 
@@ -340,10 +432,6 @@ struct DateInputSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var inputDate: Date = Date()
     @State private var year: Int = Calendar.current.component(.year, from: Date())
-
-    private var displayYear: Int {
-        Calendar.current.component(.year, from: inputDate)
-    }
 
     /// Rebuild inputDate with a new year, keeping month/day/time
     private func setYear(_ newYear: Int) {
@@ -359,7 +447,8 @@ struct DateInputSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
+            ScrollView {
+                VStack(spacing: 16) {
                 // Year selector
                 HStack(spacing: 20) {
                     Button {
@@ -417,8 +506,71 @@ struct DateInputSheet: View {
                         )
                 }
 
+                Button {
+                    vm.addBookmark(date: inputDate)
+                } label: {
+                    Label("Save This Date", systemImage: "bookmark")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.white.opacity(0.8))
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                        )
+                }
+
+                if !vm.savedDates.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Saved Dates")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.75))
+
+                        LazyVStack(spacing: 8) {
+                            ForEach(vm.savedDates) { bookmark in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(savedDateLabel(bookmark.date))
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundStyle(.white)
+                                        Text(savedTimeLabel(bookmark.date))
+                                            .font(.system(size: 12, weight: .regular, design: .monospaced))
+                                            .foregroundStyle(.white.opacity(0.55))
+                                    }
+                                    Spacer()
+                                    Button {
+                                        vm.removeBookmark(bookmark)
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 16))
+                                            .foregroundStyle(.white.opacity(0.45))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 9)
+                                .background(Color.white.opacity(0.06))
+                                .cornerRadius(10)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    inputDate = bookmark.date
+                                    year = Calendar.current.component(.year, from: bookmark.date)
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
                 Spacer()
             }
+            .padding(.horizontal, 16)
             .padding(.top, 8)
             .navigationTitle("Set Date & Time")
             .navigationBarTitleDisplayMode(.inline)
@@ -428,18 +580,32 @@ struct DateInputSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Go") {
-                        vm.viewDate = inputDate
-                        vm.update()
+                        vm.jump(to: inputDate)
                         dismiss()
                     }
                     .fontWeight(.semibold)
                 }
+            }
             }
         }
         .onAppear {
             inputDate = vm.viewDate
             year = Calendar.current.component(.year, from: vm.viewDate)
         }
+    }
+
+    private func savedDateLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
+    }
+
+    private func savedTimeLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 }
 

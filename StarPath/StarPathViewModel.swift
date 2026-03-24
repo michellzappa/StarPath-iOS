@@ -22,6 +22,8 @@ final class StarPathViewModel {
     var trendData: TrendData?
     var selectedStep: TimeStep = .day
     var moonPhaseIcon: String = "moonphase.full.moon"
+    var upcomingEvents: [SkyEvent] = []
+    var savedDates: [DateBookmark] = []
 
     // MARK: - Timer
 
@@ -36,6 +38,11 @@ final class StarPathViewModel {
 
     private let trendWindowDays: Int = 30
     private let trendStepHours: Int = 12
+    private let eventWindowDays: Int = 365
+    private let bookmarkLimit: Int = 10
+    private let stationEpsilon: Double = 0.0002
+
+    private var eventsAnchorDay: Int?
 
     // MARK: - Settings Persistence Keys
 
@@ -48,6 +55,7 @@ final class StarPathViewModel {
         static let lockZodiac = "sp_lockZodiac"
         static let centerSignIndex = "sp_centerSignIndex"
         static let selectedStep = "sp_selectedStep"
+        static let savedDates = "sp_savedDates"
     }
 
     // MARK: - Init
@@ -111,6 +119,7 @@ final class StarPathViewModel {
         } else {
             trendData = nil
         }
+
     }
 
     // MARK: - Time Travel
@@ -152,6 +161,19 @@ final class StarPathViewModel {
     func resetToNow() {
         viewDate = Date()
         update()
+    }
+
+    func jump(to date: Date) {
+        viewDate = date
+        update()
+    }
+
+    func cycleSelectedStep() {
+        let allSteps = TimeStep.allCases
+        guard let index = allSteps.firstIndex(of: selectedStep) else { return }
+        let nextIndex = (index + 1) % allSteps.count
+        selectedStep = allSteps[nextIndex]
+        saveSettings()
     }
 
     // MARK: - Trend Data
@@ -222,6 +244,499 @@ final class StarPathViewModel {
         )
     }
 
+    // MARK: - Events
+
+    func refreshEvents(force: Bool = false) {
+        let now = Date()
+        let anchorDay = utcDayOrdinal(for: now)
+        guard force || anchorDay != eventsAnchorDay else { return }
+
+        eventsAnchorDay = anchorDay
+        let start = utcStartOfDay(now)
+        let end = start.addingTimeInterval(Double(eventWindowDays) * 86_400)
+
+        var events: [SkyEvent] = []
+        events.append(contentsOf: ingressEvents(start: start, end: end))
+        events.append(contentsOf: stationEvents(start: start, end: end))
+        events.append(contentsOf: conjunctionEvents(start: start, end: end))
+        events.append(contentsOf: oppositionEvents(start: start, end: end))
+        events.append(contentsOf: moonPhaseEvents(start: start, end: end))
+
+        upcomingEvents = dedupeEvents(events.sorted { $0.date < $1.date })
+            .filter { $0.date >= now }
+    }
+
+    private func ingressEvents(start: Date, end: Date) -> [SkyEvent] {
+        let bodyIDs = ["sun", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]
+        let step = TimeInterval(6 * 3600)
+        var events: [SkyEvent] = []
+
+        for bodyID in bodyIDs {
+            guard let body = celestialBodies.first(where: { $0.id == bodyID }) else { continue }
+
+            var previousDate = start
+            var previousSign = zodiacSignIndex(for: longitude(of: bodyID, at: start))
+            var cursor = start.addingTimeInterval(step)
+
+            while cursor <= end {
+                let currentSign = zodiacSignIndex(for: longitude(of: bodyID, at: cursor))
+                if currentSign != previousSign {
+                    let ingressDate = refineIngressDate(
+                        bodyID: bodyID,
+                        fromSign: previousSign,
+                        low: previousDate,
+                        high: cursor
+                    )
+                    let sign = zodiacSigns[currentSign]
+                    events.append(
+                        SkyEvent(
+                            date: ingressDate,
+                            kind: .ingress,
+                            title: "\(body.name) enters \(sign.name)",
+                            subtitle: "\(sign.glyph)\u{FE0E} zodiac ingress",
+                            symbol: "sparkles",
+                            tint: body.color
+                        )
+                    )
+                }
+
+                previousDate = cursor
+                previousSign = currentSign
+                cursor = cursor.addingTimeInterval(step)
+            }
+        }
+
+        return events
+    }
+
+    private func stationEvents(start: Date, end: Date) -> [SkyEvent] {
+        let bodyIDs = ["mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]
+        let step = TimeInterval(6 * 3600)
+        var events: [SkyEvent] = []
+
+        for bodyID in bodyIDs {
+            guard let body = celestialBodies.first(where: { $0.id == bodyID }) else { continue }
+
+            var previousDate = start
+            var previousSign = motionSign(for: bodyID, at: previousDate)
+            var lastEventDate: Date?
+            var cursor = start.addingTimeInterval(step)
+
+            while cursor <= end {
+                let currentSign = motionSign(for: bodyID, at: cursor)
+                let changed = previousSign != currentSign && !(previousSign == 0 && currentSign == 0)
+                if changed {
+                    let stationDate = refineStationDate(bodyID: bodyID, low: previousDate, high: cursor)
+                    let tooClose = lastEventDate.map { abs($0.timeIntervalSince(stationDate)) < 3 * 86_400 } ?? false
+                    if !tooClose {
+                        let afterMotion = dailyMotion(for: bodyID, at: stationDate.addingTimeInterval(24 * 3600))
+                        let isRetrogradeAfterStation = afterMotion < 0
+                        events.append(
+                            SkyEvent(
+                                date: stationDate,
+                                kind: isRetrogradeAfterStation ? .stationRetrograde : .stationDirect,
+                                title: isRetrogradeAfterStation ? "\(body.name) stations retrograde" : "\(body.name) stations direct",
+                                subtitle: isRetrogradeAfterStation ? "Apparent westward motion begins" : "Apparent eastward motion resumes",
+                                symbol: isRetrogradeAfterStation ? "arrow.uturn.backward.circle" : "arrow.uturn.forward.circle",
+                                tint: body.color
+                            )
+                        )
+                        lastEventDate = stationDate
+                    }
+                }
+
+                previousDate = cursor
+                previousSign = currentSign
+                cursor = cursor.addingTimeInterval(step)
+            }
+        }
+
+        return events
+    }
+
+    private func conjunctionEvents(start: Date, end: Date) -> [SkyEvent] {
+        let bodies = ["sun", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]
+        let step = TimeInterval(12 * 3600)
+        var events: [SkyEvent] = []
+
+        for i in 0..<bodies.count {
+            for j in (i + 1)..<bodies.count {
+                let a = bodies[i]
+                let b = bodies[j]
+                guard let bodyA = celestialBodies.first(where: { $0.id == a }),
+                      let bodyB = celestialBodies.first(where: { $0.id == b }) else { continue }
+
+                var previousDate = start
+                var previousValue = conjunctionMetric(a: a, b: b, at: previousDate)
+                var cursor = start.addingTimeInterval(step)
+                var lastEventDate: Date?
+
+                while cursor <= end {
+                    let currentValue = conjunctionMetric(a: a, b: b, at: cursor)
+                    let crossed = (previousValue < 0 && currentValue >= 0) || (previousValue > 0 && currentValue <= 0)
+
+                    if crossed {
+                        let eventDate = refineConjunctionDate(a: a, b: b, low: previousDate, high: cursor)
+                        let tooClose = lastEventDate.map { abs($0.timeIntervalSince(eventDate)) < 5 * 86_400 } ?? false
+                        if !tooClose {
+                            let tint = bodyA.color.mix(with: bodyB.color, by: 0.5)
+                            events.append(
+                                SkyEvent(
+                                    date: eventDate,
+                                    kind: .conjunction,
+                                    title: "\(bodyA.name) conjunct \(bodyB.name)",
+                                    subtitle: "Geocentric conjunction",
+                                    symbol: "circle.hexagongrid",
+                                    tint: tint
+                                )
+                            )
+                            lastEventDate = eventDate
+                        }
+                    }
+
+                    previousDate = cursor
+                    previousValue = currentValue
+                    cursor = cursor.addingTimeInterval(step)
+                }
+            }
+        }
+
+        return events
+    }
+
+    private func oppositionEvents(start: Date, end: Date) -> [SkyEvent] {
+        let bodies = ["sun", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]
+        let step = TimeInterval(12 * 3600)
+        var events: [SkyEvent] = []
+
+        for i in 0..<bodies.count {
+            for j in (i + 1)..<bodies.count {
+                let a = bodies[i]
+                let b = bodies[j]
+                guard let bodyA = celestialBodies.first(where: { $0.id == a }),
+                      let bodyB = celestialBodies.first(where: { $0.id == b }) else { continue }
+
+                var previousDate = start
+                var previousValue = oppositionMetric(a: a, b: b, at: previousDate)
+                var cursor = start.addingTimeInterval(step)
+                var lastEventDate: Date?
+
+                while cursor <= end {
+                    let currentValue = oppositionMetric(a: a, b: b, at: cursor)
+                    let crossed = (previousValue < 0 && currentValue >= 0) || (previousValue > 0 && currentValue <= 0)
+
+                    if crossed {
+                        let eventDate = refineOppositionDate(a: a, b: b, low: previousDate, high: cursor)
+                        let tooClose = lastEventDate.map { abs($0.timeIntervalSince(eventDate)) < 5 * 86_400 } ?? false
+                        if !tooClose {
+                            let tint = bodyA.color.mix(with: bodyB.color, by: 0.5)
+                            events.append(
+                                SkyEvent(
+                                    date: eventDate,
+                                    kind: .opposition,
+                                    title: "\(bodyA.name) opposite \(bodyB.name)",
+                                    subtitle: "Geocentric opposition",
+                                    symbol: "arrow.left.and.right.circle",
+                                    tint: tint
+                                )
+                            )
+                            lastEventDate = eventDate
+                        }
+                    }
+
+                    previousDate = cursor
+                    previousValue = currentValue
+                    cursor = cursor.addingTimeInterval(step)
+                }
+            }
+        }
+
+        return events
+    }
+
+    private func moonPhaseEvents(start: Date, end: Date) -> [SkyEvent] {
+        let step = TimeInterval(3 * 3600)
+        var events: [SkyEvent] = []
+
+        var previousDate = start
+        var previousUnwrapped = moonElongation(at: start)
+        var cycleCount = 0.0
+        var nextTarget = floor(previousUnwrapped / 90) * 90 + 90
+        var cursor = start.addingTimeInterval(step)
+
+        while cursor <= end.addingTimeInterval(step) {
+            let raw = moonElongation(at: cursor)
+            var unwrapped = raw + cycleCount * 360
+            if unwrapped < previousUnwrapped - 180 {
+                cycleCount += 1
+                unwrapped = raw + cycleCount * 360
+            }
+
+            while nextTarget <= unwrapped {
+                let span = unwrapped - previousUnwrapped
+                guard span > 0 else { break }
+
+                let fraction = (nextTarget - previousUnwrapped) / span
+                let seconds = cursor.timeIntervalSince(previousDate)
+                let eventDate = previousDate.addingTimeInterval(seconds * fraction)
+
+                if let event = moonPhaseEvent(at: eventDate, angle: Int(nextTarget.rounded()) % 360) {
+                    events.append(event)
+                }
+                nextTarget += 90
+            }
+
+            previousDate = cursor
+            previousUnwrapped = unwrapped
+            cursor = cursor.addingTimeInterval(step)
+        }
+
+        return events
+    }
+
+    private func moonPhaseEvent(at date: Date, angle: Int) -> SkyEvent? {
+        switch ((angle % 360) + 360) % 360 {
+        case 0:
+            return SkyEvent(
+                date: date,
+                kind: .moonPhase,
+                title: "New Moon",
+                subtitle: "Sun and Moon align",
+                symbol: "moonphase.new.moon",
+                tint: .white
+            )
+        case 90:
+            return SkyEvent(
+                date: date,
+                kind: .moonPhase,
+                title: "First Quarter Moon",
+                subtitle: "Waxing half moon",
+                symbol: "moonphase.first.quarter",
+                tint: .white
+            )
+        case 180:
+            return SkyEvent(
+                date: date,
+                kind: .moonPhase,
+                title: "Full Moon",
+                subtitle: "Moon opposite the Sun",
+                symbol: "moonphase.full.moon",
+                tint: .white
+            )
+        case 270:
+            return SkyEvent(
+                date: date,
+                kind: .moonPhase,
+                title: "Last Quarter Moon",
+                subtitle: "Waning half moon",
+                symbol: "moonphase.last.quarter",
+                tint: .white
+            )
+        default:
+            return nil
+        }
+    }
+
+    private func refineIngressDate(bodyID: String, fromSign: Int, low: Date, high: Date) -> Date {
+        var lo = low
+        var hi = high
+
+        for _ in 0..<18 {
+            let mid = Date(timeIntervalSince1970: (lo.timeIntervalSince1970 + hi.timeIntervalSince1970) / 2)
+            let midSign = zodiacSignIndex(for: longitude(of: bodyID, at: mid))
+            if midSign == fromSign {
+                lo = mid
+            } else {
+                hi = mid
+            }
+        }
+
+        return hi
+    }
+
+    private func refineStationDate(bodyID: String, low: Date, high: Date) -> Date {
+        var lo = low
+        var hi = high
+        var fLo = dailyMotion(for: bodyID, at: lo)
+        var fHi = dailyMotion(for: bodyID, at: hi)
+
+        if abs(fLo) <= stationEpsilon { return lo }
+        if abs(fHi) <= stationEpsilon { return hi }
+
+        // If no strict sign change in this bracket, pick the local minimum |motion|.
+        if fLo * fHi > 0 {
+            var bestDate = lo
+            var bestAbs = abs(fLo)
+            for k in 1...24 {
+                let t = lo.timeIntervalSince1970 + (hi.timeIntervalSince1970 - lo.timeIntervalSince1970) * Double(k) / 24
+                let candidate = Date(timeIntervalSince1970: t)
+                let absMotion = abs(dailyMotion(for: bodyID, at: candidate))
+                if absMotion < bestAbs {
+                    bestAbs = absMotion
+                    bestDate = candidate
+                }
+            }
+            return bestDate
+        }
+
+        for _ in 0..<24 {
+            let mid = Date(timeIntervalSince1970: (lo.timeIntervalSince1970 + hi.timeIntervalSince1970) / 2)
+            let fMid = dailyMotion(for: bodyID, at: mid)
+
+            if abs(fMid) <= stationEpsilon {
+                return mid
+            }
+
+            if fLo * fMid <= 0 {
+                hi = mid
+                fHi = fMid
+            } else {
+                lo = mid
+                fLo = fMid
+            }
+        }
+
+        return abs(fLo) < abs(fHi) ? lo : hi
+    }
+
+    private func refineConjunctionDate(a: String, b: String, low: Date, high: Date) -> Date {
+        var lo = low
+        var hi = high
+        var fLo = conjunctionMetric(a: a, b: b, at: lo)
+        var fHi = conjunctionMetric(a: a, b: b, at: hi)
+
+        for _ in 0..<22 {
+            let mid = Date(timeIntervalSince1970: (lo.timeIntervalSince1970 + hi.timeIntervalSince1970) / 2)
+            let fMid = conjunctionMetric(a: a, b: b, at: mid)
+
+            if abs(fMid) < 0.02 {
+                return mid
+            }
+
+            if fLo == 0 { return lo }
+            if fHi == 0 { return hi }
+
+            if fLo * fMid <= 0 {
+                hi = mid
+                fHi = fMid
+            } else {
+                lo = mid
+                fLo = fMid
+            }
+        }
+
+        return Date(timeIntervalSince1970: (lo.timeIntervalSince1970 + hi.timeIntervalSince1970) / 2)
+    }
+
+    private func conjunctionMetric(a: String, b: String, at date: Date) -> Double {
+        let lonA = longitude(of: a, at: date)
+        let lonB = longitude(of: b, at: date)
+        return signedDelta(lonA, lonB)
+    }
+
+    private func refineOppositionDate(a: String, b: String, low: Date, high: Date) -> Date {
+        var lo = low
+        var hi = high
+        var fLo = oppositionMetric(a: a, b: b, at: lo)
+        var fHi = oppositionMetric(a: a, b: b, at: hi)
+
+        for _ in 0..<22 {
+            let mid = Date(timeIntervalSince1970: (lo.timeIntervalSince1970 + hi.timeIntervalSince1970) / 2)
+            let fMid = oppositionMetric(a: a, b: b, at: mid)
+
+            if abs(fMid) < 0.02 {
+                return mid
+            }
+
+            if fLo == 0 { return lo }
+            if fHi == 0 { return hi }
+
+            if fLo * fMid <= 0 {
+                hi = mid
+                fHi = fMid
+            } else {
+                lo = mid
+                fLo = fMid
+            }
+        }
+
+        return Date(timeIntervalSince1970: (lo.timeIntervalSince1970 + hi.timeIntervalSince1970) / 2)
+    }
+
+    private func oppositionMetric(a: String, b: String, at date: Date) -> Double {
+        let lonA = longitude(of: a, at: date)
+        let lonB = longitude(of: b, at: date)
+        let separation = abs(signedDelta(lonA, lonB))
+        return separation - 180
+    }
+
+    private func dedupeEvents(_ events: [SkyEvent]) -> [SkyEvent] {
+        var deduped: [SkyEvent] = []
+        for event in events {
+            if let last = deduped.last,
+               last.title == event.title,
+               abs(last.date.timeIntervalSince(event.date)) < 1_800 {
+                continue
+            }
+            deduped.append(event)
+        }
+        return deduped
+    }
+
+    private func longitude(of bodyID: String, at date: Date) -> Double {
+        geocentricLongitudes(for: date).longitude(for: bodyID)
+    }
+
+    private func zodiacSignIndex(for longitude: Double) -> Int {
+        Int(normalizeAngle(longitude) / 30) % 12
+    }
+
+    private func dailyMotion(for bodyID: String, at date: Date) -> Double {
+        let before = date.addingTimeInterval(-6 * 3600)
+        let after = date.addingTimeInterval(6 * 3600)
+        let lonBefore = longitude(of: bodyID, at: before)
+        let lonAfter = longitude(of: bodyID, at: after)
+        return signedDelta(lonAfter, lonBefore) * 2
+    }
+
+    private func motionSign(for bodyID: String, at date: Date) -> Int {
+        let motion = dailyMotion(for: bodyID, at: date)
+        if motion > stationEpsilon { return 1 }
+        if motion < -stationEpsilon { return -1 }
+        return 0
+    }
+
+    private func moonElongation(at date: Date) -> Double {
+        let state = geocentricLongitudes(for: date)
+        return normalizeAngle(state.moon - state.sun)
+    }
+
+    private func utcDayOrdinal(for date: Date) -> Int {
+        Int(floor(date.timeIntervalSince1970 / 86_400))
+    }
+
+    private func utcStartOfDay(_ date: Date) -> Date {
+        Date(timeIntervalSince1970: TimeInterval(utcDayOrdinal(for: date) * 86_400))
+    }
+
+    // MARK: - Date Bookmarks
+
+    func addBookmark(date: Date) {
+        let isDuplicate = savedDates.contains { abs($0.date.timeIntervalSince(date)) < 60 }
+        guard !isDuplicate else { return }
+
+        savedDates.insert(DateBookmark(date: date), at: 0)
+        if savedDates.count > bookmarkLimit {
+            savedDates = Array(savedDates.prefix(bookmarkLimit))
+        }
+        saveSettings()
+    }
+
+    func removeBookmark(_ bookmark: DateBookmark) {
+        savedDates.removeAll { $0.id == bookmark.id }
+        saveSettings()
+    }
+
     // MARK: - Formatted Timestamp
 
     var formattedTimestamp: String {
@@ -244,6 +759,9 @@ final class StarPathViewModel {
         ud.set(options.lockZodiac, forKey: SettingsKey.lockZodiac)
         ud.set(options.centerSignIndex, forKey: SettingsKey.centerSignIndex)
         ud.set(selectedStep.rawValue, forKey: SettingsKey.selectedStep)
+        if let data = try? JSONEncoder().encode(savedDates) {
+            ud.set(data, forKey: SettingsKey.savedDates)
+        }
     }
 
     private func loadSettings() {
@@ -273,6 +791,10 @@ final class StarPathViewModel {
         if let stepRaw = ud.string(forKey: SettingsKey.selectedStep),
            let step = TimeStep(rawValue: stepRaw) {
             selectedStep = step
+        }
+        if let data = ud.data(forKey: SettingsKey.savedDates),
+           let decoded = try? JSONDecoder().decode([DateBookmark].self, from: data) {
+            savedDates = decoded.sorted { $0.date > $1.date }
         }
     }
 }

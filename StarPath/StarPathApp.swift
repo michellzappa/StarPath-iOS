@@ -20,6 +20,15 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             .forEach { $0.backgroundColor = .black }
         return true
     }
+
+    /// Lock the interface to portrait. The app manually reads physical device
+    /// orientation via notifications to rotate labels/glyphs only — not the whole UI.
+    func application(
+        _ application: UIApplication,
+        supportedInterfaceOrientationsFor window: UIWindow?
+    ) -> UIInterfaceOrientationMask {
+        return .portrait
+    }
 }
 
 @main

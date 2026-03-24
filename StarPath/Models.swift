@@ -178,3 +178,54 @@ struct TrendData {
     let sampleCount: Int
     let centerIndex: Int
 }
+
+// MARK: - Date Bookmarks
+
+struct DateBookmark: Identifiable, Codable, Hashable {
+    let id: UUID
+    let date: Date
+
+    init(id: UUID = UUID(), date: Date) {
+        self.id = id
+        self.date = date
+    }
+}
+
+// MARK: - Sky Events
+
+enum SkyEventKind {
+    case ingress
+    case stationRetrograde
+    case stationDirect
+    case moonPhase
+    case conjunction
+    case opposition
+}
+
+struct SkyEvent: Identifiable {
+    let id: UUID
+    let date: Date
+    let kind: SkyEventKind
+    let title: String
+    let subtitle: String
+    let symbol: String
+    let tint: Color
+
+    init(
+        id: UUID = UUID(),
+        date: Date,
+        kind: SkyEventKind,
+        title: String,
+        subtitle: String,
+        symbol: String,
+        tint: Color
+    ) {
+        self.id = id
+        self.date = date
+        self.kind = kind
+        self.title = title
+        self.subtitle = subtitle
+        self.symbol = symbol
+        self.tint = tint
+    }
+}

@@ -2,7 +2,7 @@
 //  PlanetDetailView.swift
 //  StarPath
 //
-//  Tappable planet info overlay using iOS 26 Liquid Glass design.
+//  Tappable planet info overlay.
 //  Shows sign position, longitude, distance, daily motion, and retrograde status.
 //
 
@@ -20,24 +20,22 @@ struct PlanetDetailView: View {
             Spacer().frame(height: 20)
 
             // Info rows in glass cards
-            GlassEffectContainer {
-                VStack(spacing: 2) {
-                    infoRow(label: "Position", value: info.formattedPosition, icon: "mappin.and.ellipse")
-                    infoRow(label: "Longitude", value: info.formattedLongitude, icon: "ruler")
-                    infoRow(label: "Distance", value: info.formattedDistance, icon: "arrow.left.and.right")
-                    infoRow(label: "Daily Motion", value: info.formattedSpeed, icon: info.isRetrograde ? "arrow.backward" : "arrow.forward")
-                    if info.id != "sun" {
-                        infoRow(
-                            label: "From Sun",
-                            value: String(format: "%+.1f\u{00B0}", info.relativeDegrees),
-                            icon: "sun.min"
-                        )
-                    }
+            VStack(spacing: 2) {
+                infoRow(label: "Position", value: info.formattedPosition, icon: "mappin.and.ellipse")
+                infoRow(label: "Longitude", value: info.formattedLongitude, icon: "ruler")
+                infoRow(label: "Distance", value: info.formattedDistance, icon: "arrow.left.and.right")
+                infoRow(label: "Daily Motion", value: info.formattedSpeed, icon: info.isRetrograde ? "arrow.backward" : "arrow.forward")
+                if info.id != "sun" {
+                    infoRow(
+                        label: "From Sun",
+                        value: String(format: "%+.1f\u{00B0}", info.relativeDegrees),
+                        icon: "sun.min"
+                    )
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 16)
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20))
             }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
 
             Spacer().frame(height: 24)
 
@@ -65,7 +63,7 @@ struct PlanetDetailView: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .frame(width: 36, height: 36)
-                    .glassEffect(.regular.interactive(), in: .circle)
+                    .background(.ultraThinMaterial, in: .circle)
             }
             .padding(.bottom, 16)
         }
@@ -107,7 +105,8 @@ struct PlanetDetailView: View {
                         .shadow(color: info.body.color.opacity(0.5), radius: 12)
                 }
                 .frame(width: 88, height: 88)
-                .glassEffect(.regular.tint(info.body.color.opacity(0.3)), in: .circle)
+                .background(info.body.color.opacity(0.15))
+                .background(.ultraThinMaterial, in: .circle)
             }
 
             Text(info.body.name)
@@ -146,6 +145,7 @@ struct PlanetDetailView: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 14)
             .padding(.vertical, 7)
-            .glassEffect(.regular.tint(color.opacity(0.4)), in: .capsule)
+            .background(color.opacity(0.3))
+            .background(.ultraThinMaterial, in: .capsule)
     }
 }

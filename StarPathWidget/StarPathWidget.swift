@@ -44,6 +44,12 @@ struct StarPathEntry: TimelineEntry {
         widgetPositionedBodies(for: date)
     }
 
+    var depthSortedBodies: [WidgetPositionedBody] {
+        let bodies = positionedBodies
+        let sunLon = bodies.first { $0.id == "sun" }?.longitude ?? 0
+        return widgetDepthSortedBodies(bodies, sunLongitude: sunLon)
+    }
+
     var sunSign: ZodiacSign {
         let state = geocentricLongitudes(for: date)
         return zodiacSign(fromLongitude: state.sun)
@@ -75,6 +81,12 @@ struct StarPathWidgetEntryView: View {
             mediumWidget
         case .systemLarge:
             largeWidget
+        case .accessoryInline:
+            accessoryInlineWidget
+        case .accessoryCircular:
+            accessoryCircularWidget
+        case .accessoryRectangular:
+            accessoryRectangularWidget
         default:
             mediumWidget
         }
@@ -177,8 +189,8 @@ struct StarPathWidgetEntryView: View {
                             .position(x: xCenter, y: size.height / 2 - 22)
                     }
 
-                    // Planet nodes
-                    ForEach(entry.positionedBodies) { pb in
+                    // Planet nodes (depth-sorted: back-to-front)
+                    ForEach(entry.depthSortedBodies) { pb in
                         let x = pb.axisFraction * size.width
                         let y = size.height / 2
 
@@ -251,7 +263,7 @@ struct StarPathWidgetEntryView: View {
                             .position(x: xCenter, y: size.height / 2 - 26)
                     }
 
-                    ForEach(entry.positionedBodies) { pb in
+                    ForEach(entry.depthSortedBodies) { pb in
                         let x = pb.axisFraction * size.width
                         let y = size.height / 2
 
@@ -305,6 +317,46 @@ struct StarPathWidgetEntryView: View {
             }
 
             Spacer()
+        }
+    }
+
+    // MARK: - Lock Screen Widgets
+
+    private var accessoryInlineWidget: some View {
+        let sign = entry.sunSign
+        let sunLon = entry.positionedBodies.first { $0.id == "sun" }?.longitude ?? 0
+        let degInSign = normalizeAngle(sunLon).truncatingRemainder(dividingBy: 30)
+        return Text("☉ \(sign.glyph)\u{FE0E} \(Int(degInSign.rounded()))°")
+    }
+
+    private var accessoryCircularWidget: some View {
+        let sign = entry.sunSign
+        return ZStack {
+            Circle()
+                .fill(Color.white.opacity(0.12))
+            Text("\(sign.glyph)\u{FE0E}")
+                .font(.system(size: 16))
+                .foregroundStyle(.white)
+        }
+    }
+
+    private var accessoryRectangularWidget: some View {
+        let sign = entry.sunSign
+        let sunLon = entry.positionedBodies.first { $0.id == "sun" }?.longitude ?? 0
+        let degInSign = normalizeAngle(sunLon).truncatingRemainder(dividingBy: 30)
+
+        return VStack(alignment: .leading, spacing: 2) {
+            Text("Starpath")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Image(systemName: "sun.max.fill")
+                Text("\(sign.glyph)\u{FE0E} \(sign.name)")
+                Spacer()
+                Text("\(Int(degInSign.rounded()))°")
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+            }
+            .font(.system(size: 13, weight: .medium))
         }
     }
 
@@ -378,7 +430,7 @@ struct StarPathWidget: Widget {
         }
         .configurationDisplayName("Starpath")
         .description("Live zodiac chart showing planetary positions.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryInline, .accessoryCircular, .accessoryRectangular])
     }
 }
 
