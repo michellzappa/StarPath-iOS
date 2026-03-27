@@ -14,8 +14,7 @@ struct StarfieldView: View {
     let date: Date
 
     // Star configuration
-    private let starCount = 2400
-    private let seed: UInt32 = 42
+    private static let stars = StarCatalog.makeStars(count: 2400, seed: 42)
 
     var body: some View {
         Canvas { context, size in
@@ -35,23 +34,10 @@ struct StarfieldView: View {
             let cosR = cos(rotAngle)
             let sinR = sin(rotAngle)
 
-            // Generate deterministic star positions on the unit sphere
-            var rng = SeededRandom(seed: seed)
-
-            for _ in 0..<starCount {
-                // Uniform distribution on sphere using cylindrical method
-                let u = rng.next() * 2.0 - 1.0  // [-1, 1]
-                let theta = rng.next() * .pi * 2.0
-                let r = sqrt(1.0 - u * u)
-
-                let x = r * cos(theta)
-                var y = r * sin(theta)
-                var z = u
-
-                // Base brightness variation
-                let baseBrightness = 0.15 + rng.next() * 0.55
-                // Size variation
-                let starSize = 0.6 + rng.next() * 1.4
+            for star in Self.stars {
+                let x = star.x
+                var y = star.y
+                var z = star.z
 
                 // Rotation around X axis — pure top-to-bottom hamster wheel
                 let ry = y * cosR - z * sinR
@@ -69,13 +55,13 @@ struct StarfieldView: View {
 
                 // Depth-based brightness: stars closer (z near 1) are brighter
                 let depthFade = (z + 0.05) / 1.05  // 0...1
-                let alpha = baseBrightness * depthFade
+                let alpha = star.baseBrightness * depthFade
 
                 let rect = CGRect(
-                    x: sx - starSize / 2,
-                    y: sy - starSize / 2,
-                    width: starSize,
-                    height: starSize
+                    x: sx - star.size / 2,
+                    y: sy - star.size / 2,
+                    width: star.size,
+                    height: star.size
                 )
                 context.fill(
                     Path(ellipseIn: rect),
@@ -83,6 +69,40 @@ struct StarfieldView: View {
                 )
             }
         }
+    }
+}
+
+private struct StarSample {
+    let x: Double
+    let y: Double
+    let z: Double
+    let baseBrightness: Double
+    let size: Double
+}
+
+private enum StarCatalog {
+    static func makeStars(count: Int, seed: UInt32) -> [StarSample] {
+        var rng = SeededRandom(seed: seed)
+        var stars: [StarSample] = []
+        stars.reserveCapacity(count)
+
+        for _ in 0..<count {
+            let u = rng.next() * 2.0 - 1.0
+            let theta = rng.next() * .pi * 2.0
+            let r = sqrt(1.0 - u * u)
+
+            stars.append(
+                StarSample(
+                    x: r * cos(theta),
+                    y: r * sin(theta),
+                    z: u,
+                    baseBrightness: 0.15 + rng.next() * 0.55,
+                    size: 0.6 + rng.next() * 1.4
+                )
+            )
+        }
+
+        return stars
     }
 }
 

@@ -10,6 +10,7 @@ import SwiftUI
 struct EventsSheet: View {
     @Bindable var vm: StarPathViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedAspectEvent: SkyEvent?
 
     var body: some View {
         NavigationStack {
@@ -56,6 +57,13 @@ struct EventsSheet: View {
                     }
                 }
             }
+            .sheet(item: $selectedAspectEvent) { event in
+                AspectOrbSheet(vm: vm, event: event) {
+                    selectedAspectEvent = nil
+                    vm.jump(to: event.date)
+                    dismiss()
+                }
+            }
         }
         .onAppear {
             vm.refreshEvents()
@@ -74,18 +82,11 @@ struct EventsSheet: View {
     private func dayTitle(_ day: Date) -> String {
         if Calendar.current.isDateInToday(day) { return "Today" }
         if Calendar.current.isDateInTomorrow(day) { return "Tomorrow" }
-
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        formatter.timeStyle = .none
-        return formatter.string(from: day)
+        return StarPathDateFormats.eventDay.string(from: day)
     }
 
     private func timeLabel(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        StarPathDateFormats.eventTime.string(from: date)
     }
 
     @ViewBuilder
@@ -99,15 +100,35 @@ struct EventsSheet: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(event.title)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.primary)
+                HStack(spacing: 6) {
+                    Text(event.title)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.primary)
+                    if let bodyA = event.bodyA, let bodyB = event.bodyB {
+                        if let label = significanceLabel(aspectSignificance(bodyA: bodyA, bodyB: bodyB)) {
+                            Text(label)
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(event.tint.opacity(0.5))
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
                 Text(event.subtitle)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
 
             Spacer()
+
+            if event.hasAspectData {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 12))
+                    .foregroundStyle(event.tint.opacity(0.6))
+            }
 
             Text(timeLabel(event.date))
                 .font(.system(size: 12, weight: .semibold, design: .monospaced))
@@ -123,9 +144,33 @@ struct EventsSheet: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            vm.jump(to: event.date)
-            dismiss()
+            if event.hasAspectData {
+                selectedAspectEvent = event
+            } else {
+                vm.jump(to: event.date)
+                dismiss()
+            }
         }
+    }
+}
+
+// MARK: - Aspect Orb Sheet Wrapper
+
+struct AspectOrbSheet: View {
+    let vm: StarPathViewModel
+    let event: SkyEvent
+    let onJump: () -> Void
+
+    var body: some View {
+        let samples = vm.orbCurveSamples(
+            bodyA: event.bodyA ?? "",
+            bodyB: event.bodyB ?? "",
+            aspectAngle: event.aspectAngle ?? 0,
+            centerDate: event.date
+        )
+        AspectOrbView(samples: samples, event: event, onJump: onJump)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
     }
 }
 
@@ -138,19 +183,22 @@ struct WidgetGuideSheet: View {
                         HStack(spacing: 12) {
                             widgetPreviewCard(
                                 title: "Home (Small)",
-                                width: 126,
-                                content: AnyView(homePreview)
-                            )
+                                width: 126
+                            ) {
+                                homePreview
+                            }
                             widgetPreviewCard(
                                 title: "Lock (Circular)",
-                                width: 102,
-                                content: AnyView(lockCircularPreview)
-                            )
+                                width: 102
+                            ) {
+                                lockCircularPreview
+                            }
                             widgetPreviewCard(
                                 title: "Lock (Rectangular)",
-                                width: 172,
-                                content: AnyView(lockRectPreview)
-                            )
+                                width: 172
+                            ) {
+                                lockRectPreview
+                            }
                         }
                         .padding(.vertical, 4)
                     }
@@ -178,9 +226,13 @@ struct WidgetGuideSheet: View {
         }
     }
 
-    private func widgetPreviewCard(title: String, width: CGFloat, content: AnyView) -> some View {
+    private func widgetPreviewCard<Content: View>(
+        title: String,
+        width: CGFloat,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            content
+            content()
                 .frame(width: width, height: 76)
                 .background(Color.black)
                 .clipShape(RoundedRectangle(cornerRadius: 12))

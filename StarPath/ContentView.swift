@@ -11,12 +11,12 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var vm = StarPathViewModel()
-    @State private var showSettings = false
-    @State private var showDateInput = false
-    @State private var showEvents = false
+    @State private var activeSheet: ActiveSheet?
     @State private var showOnboarding = false
     @State private var selectedBodyId: String?
+    @State private var selectedAspectFromDetail: SkyEvent?
 
     // MARK: - Device orientation tracking (for text rotation only)
     @State private var deviceOrientation: UIDeviceOrientation = UIDevice.current.orientation
@@ -34,6 +34,14 @@ struct ContentView: View {
     // MARK: - Momentum scroll state
     @State private var dragAccumulator: CGFloat = 0
     @State private var momentumTimer: Timer?
+
+    private enum ActiveSheet: String, Identifiable {
+        case settings
+        case events
+        case dateInput
+
+        var id: String { rawValue }
+    }
 
     var body: some View {
         ZStack {
@@ -68,9 +76,7 @@ struct ContentView: View {
                         textRotation: textRotation,
                         moonPhaseIcon: vm.moonPhaseIcon,
                         onTapBody: { bodyId in
-                            withAnimation(.spring(duration: 0.35)) {
-                                selectedBodyId = bodyId
-                            }
+                            showBodyDetail(bodyId)
                         }
                     )
                 }
@@ -82,7 +88,7 @@ struct ContentView: View {
                 if vm.options.showTime {
                     GeometryReader { geo in
                         let timestampView = Button {
-                            showDateInput = true
+                            activeSheet = .dateInput
                         } label: {
                             Text(vm.formattedTimestamp)
                                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
@@ -138,18 +144,21 @@ struct ContentView: View {
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        withAnimation(.spring(duration: 0.3)) {
-                            selectedBodyId = nil
-                        }
+                        dismissBodyDetail()
                     }
                     .allowsHitTesting(true)
                     .gesture(timeTravelDrag)
 
-                PlanetDetailView(info: detail) {
-                    withAnimation(.spring(duration: 0.3)) {
-                        selectedBodyId = nil
+                PlanetDetailView(
+                    info: detail,
+                    aspectEvents: aspectEvents(for: bodyId),
+                    onDismiss: {
+                        dismissBodyDetail()
+                    },
+                    onSelectAspect: { event in
+                        selectedAspectFromDetail = event
                     }
-                }
+                )
                 .transition(.opacity.combined(with: .scale(scale: 0.92)))
                 .allowsHitTesting(true)
             }
@@ -162,6 +171,9 @@ struct ContentView: View {
                 showOnboarding = true
             }
         }
+        .onDisappear {
+            UIDevice.current.endGeneratingDeviceOrientationNotifications()
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
             let orientation = UIDevice.current.orientation
             // Only update for meaningful orientations (ignore faceUp/faceDown/unknown)
@@ -171,20 +183,31 @@ struct ContentView: View {
                 }
             }
         }
-        .sheet(isPresented: $showSettings) {
-            SettingsSheet(vm: vm)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            vm.handleScenePhase(phase)
         }
-        .sheet(isPresented: $showEvents) {
-            EventsSheet(vm: vm)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .settings:
+                SettingsSheet(vm: vm)
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+            case .events:
+                EventsSheet(vm: vm)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            case .dateInput:
+                DateInputSheet(vm: vm)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
         }
-        .sheet(isPresented: $showDateInput) {
-            DateInputSheet(vm: vm)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+        .sheet(item: $selectedAspectFromDetail) { event in
+            AspectOrbSheet(vm: vm, event: event) {
+                selectedAspectFromDetail = nil
+                vm.jump(to: event.date)
+                dismissBodyDetail()
+            }
         }
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView {
@@ -198,7 +221,7 @@ struct ContentView: View {
 
     private var settingsButton: some View {
         Button {
-            showSettings.toggle()
+            activeSheet = .settings
         } label: {
             Image(systemName: "gearshape")
                 .font(.system(size: 15, weight: .medium))
@@ -215,7 +238,7 @@ struct ContentView: View {
     private var eventsButton: some View {
         Button {
             vm.refreshEvents()
-            showEvents = true
+            activeSheet = .events
         } label: {
             Image(systemName: "calendar")
                 .font(.system(size: 15, weight: .medium))
@@ -260,6 +283,24 @@ struct ContentView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(controlStroke)
         .contentShape(.interaction, Rectangle().inset(by: -8))
+    }
+
+    private func showBodyDetail(_ bodyId: String) {
+        withAnimation(.spring(duration: 0.35)) {
+            selectedBodyId = bodyId
+        }
+    }
+
+    private func dismissBodyDetail() {
+        withAnimation(.spring(duration: 0.3)) {
+            selectedBodyId = nil
+        }
+    }
+
+    private func aspectEvents(for bodyId: String) -> [SkyEvent] {
+        vm.upcomingEvents.filter { event in
+            event.hasAspectData && (event.bodyA == bodyId || event.bodyB == bodyId)
+        }
     }
 
     private var controlBackground: some View {
@@ -595,17 +636,11 @@ struct DateInputSheet: View {
     }
 
     private func savedDateLabel(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
+        StarPathDateFormats.savedDate.string(from: date)
     }
 
     private func savedTimeLabel(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        StarPathDateFormats.savedTime.string(from: date)
     }
 }
 

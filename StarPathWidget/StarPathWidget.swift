@@ -436,20 +436,19 @@ struct StarPathWidget: Widget {
 
 // MARK: - Previews
 
-#Preview(as: .systemSmall) {
-    StarPathWidget()
-} timeline: {
-    StarPathEntry(date: .now)
-}
+#if DEBUG
+struct StarPathWidget_Previews: PreviewProvider {
+    static var previews: some View {
+        Group {
+            StarPathWidgetEntryView(entry: .init(date: .now))
+                .previewContext(WidgetPreviewContext(family: .systemSmall))
 
-#Preview(as: .systemMedium) {
-    StarPathWidget()
-} timeline: {
-    StarPathEntry(date: .now)
-}
+            StarPathWidgetEntryView(entry: .init(date: .now))
+                .previewContext(WidgetPreviewContext(family: .systemMedium))
 
-#Preview(as: .systemLarge) {
-    StarPathWidget()
-} timeline: {
-    StarPathEntry(date: .now)
+            StarPathWidgetEntryView(entry: .init(date: .now))
+                .previewContext(WidgetPreviewContext(family: .systemLarge))
+        }
+    }
 }
+#endif

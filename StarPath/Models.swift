@@ -210,6 +210,9 @@ struct SkyEvent: Identifiable {
     let subtitle: String
     let symbol: String
     let tint: Color
+    let bodyA: String?
+    let bodyB: String?
+    let aspectAngle: Double?
 
     init(
         id: UUID = UUID(),
@@ -218,7 +221,10 @@ struct SkyEvent: Identifiable {
         title: String,
         subtitle: String,
         symbol: String,
-        tint: Color
+        tint: Color,
+        bodyA: String? = nil,
+        bodyB: String? = nil,
+        aspectAngle: Double? = nil
     ) {
         self.id = id
         self.date = date
@@ -227,5 +233,20 @@ struct SkyEvent: Identifiable {
         self.subtitle = subtitle
         self.symbol = symbol
         self.tint = tint
+        self.bodyA = bodyA
+        self.bodyB = bodyB
+        self.aspectAngle = aspectAngle
     }
+
+    var hasAspectData: Bool {
+        bodyA != nil && bodyB != nil && aspectAngle != nil
+    }
+}
+
+// MARK: - Orb Curve Data
+
+struct OrbSample {
+    let date: Date
+    let orb: Double      // degrees from exact aspect (0 = exact)
+    let signIndex: Int   // zodiac sign of slower body
 }

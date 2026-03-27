@@ -24,10 +24,12 @@ final class StarPathViewModel {
     var moonPhaseIcon: String = "moonphase.full.moon"
     var upcomingEvents: [SkyEvent] = []
     var savedDates: [DateBookmark] = []
+    private(set) var isLiveMode: Bool = true
 
     // MARK: - Timer
 
     private var timer: Timer?
+    private let userDefaults: UserDefaults
 
     // MARK: - Haptic: zodiac boundary crossing
 
@@ -41,8 +43,10 @@ final class StarPathViewModel {
     private let eventWindowDays: Int = 365
     private let bookmarkLimit: Int = 10
     private let stationEpsilon: Double = 0.0002
+    private let trendRefreshInterval: TimeInterval = 60
 
     private var eventsAnchorDay: Int?
+    private var trendCacheKey: TrendCacheKey?
 
     // MARK: - Settings Persistence Keys
 
@@ -58,30 +62,80 @@ final class StarPathViewModel {
         static let savedDates = "sp_savedDates"
     }
 
+    private struct TrendCacheKey: Equatable {
+        let minuteBucket: Int
+        let lockZodiac: Bool
+        let centerSignIndex: Int
+    }
+
     // MARK: - Init
 
-    init() {
+    init(
+        initialDate: Date = Date(),
+        userDefaults: UserDefaults = .standard,
+        startsLiveUpdates: Bool = true
+    ) {
+        self.viewDate = initialDate
+        self.userDefaults = userDefaults
         loadSettings()
         update()
-        startTimer()
+        if startsLiveUpdates {
+            resumeLiveUpdates(syncImmediately: true)
+        } else {
+            isLiveMode = false
+        }
     }
 
     deinit {
-        timer?.invalidate()
+        invalidateTimer()
     }
 
     // MARK: - Timer
 
-    func startTimer() {
+    func resumeLiveUpdates(syncImmediately: Bool = true) {
+        isLiveMode = true
+        if syncImmediately {
+            viewDate = Date()
+            update()
+        }
+        startTimer()
+    }
+
+    func pauseLiveUpdates() {
+        isLiveMode = false
+        invalidateTimer()
+    }
+
+    func handleScenePhase(_ phase: ScenePhase) {
+        switch phase {
+        case .active:
+            guard isLiveMode else { return }
+            if timer == nil {
+                startTimer()
+            }
+            viewDate = Date()
+            update()
+        case .inactive, .background:
+            invalidateTimer()
+        @unknown default:
+            invalidateTimer()
+        }
+    }
+
+    private func startTimer() {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self else { return }
-            self.viewDate = Date(timeInterval: 1, since: self.viewDate)
+            self.viewDate = Date()
             self.update()
         }
     }
 
     func stopTimer() {
+        pauseLiveUpdates()
+    }
+
+    private func invalidateTimer() {
         timer?.invalidate()
         timer = nil
     }
@@ -114,17 +168,14 @@ final class StarPathViewModel {
         // Update moon phase icon
         moonPhaseIcon = moonPhaseSymbol(for: viewDate)
 
-        if options.showDrift {
-            trendData = buildTrendData(baseDate: viewDate)
-        } else {
-            trendData = nil
-        }
-
+        updateTrendDataIfNeeded()
     }
 
     // MARK: - Time Travel
 
     func shiftTime(amount: Int, unit: TimeStep) {
+        pauseLiveUpdates()
+
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
 
@@ -159,11 +210,11 @@ final class StarPathViewModel {
     }
 
     func resetToNow() {
-        viewDate = Date()
-        update()
+        resumeLiveUpdates()
     }
 
     func jump(to date: Date) {
+        pauseLiveUpdates()
         viewDate = date
         update()
     }
@@ -177,6 +228,28 @@ final class StarPathViewModel {
     }
 
     // MARK: - Trend Data
+
+    private func updateTrendDataIfNeeded() {
+        guard options.showDrift else {
+            trendData = nil
+            trendCacheKey = nil
+            return
+        }
+
+        let cacheKey = makeTrendCacheKey(for: viewDate)
+        guard trendCacheKey != cacheKey || trendData == nil else { return }
+
+        trendData = buildTrendData(baseDate: viewDate)
+        trendCacheKey = cacheKey
+    }
+
+    private func makeTrendCacheKey(for date: Date) -> TrendCacheKey {
+        TrendCacheKey(
+            minuteBucket: Int(date.timeIntervalSince1970 / trendRefreshInterval),
+            lockZodiac: options.lockZodiac,
+            centerSignIndex: options.centerSignIndex
+        )
+    }
 
     private func buildTrendData(baseDate: Date) -> TrendData {
         let stepMs = Double(trendStepHours) * 3600
@@ -246,13 +319,13 @@ final class StarPathViewModel {
 
     // MARK: - Events
 
-    func refreshEvents(force: Bool = false) {
-        let now = Date()
-        let anchorDay = utcDayOrdinal(for: now)
+    func refreshEvents(force: Bool = false, around anchorDate: Date? = nil) {
+        let anchorDate = anchorDate ?? viewDate
+        let anchorDay = utcDayOrdinal(for: anchorDate)
         guard force || anchorDay != eventsAnchorDay else { return }
 
         eventsAnchorDay = anchorDay
-        let start = utcStartOfDay(now)
+        let start = utcStartOfDay(anchorDate)
         let end = start.addingTimeInterval(Double(eventWindowDays) * 86_400)
 
         var events: [SkyEvent] = []
@@ -263,7 +336,7 @@ final class StarPathViewModel {
         events.append(contentsOf: moonPhaseEvents(start: start, end: end))
 
         upcomingEvents = dedupeEvents(events.sorted { $0.date < $1.date })
-            .filter { $0.date >= now }
+            .filter { $0.date >= start }
     }
 
     private func ingressEvents(start: Date, end: Date) -> [SkyEvent] {
@@ -293,7 +366,7 @@ final class StarPathViewModel {
                             date: ingressDate,
                             kind: .ingress,
                             title: "\(body.name) enters \(sign.name)",
-                            subtitle: "\(sign.glyph)\u{FE0E} zodiac ingress",
+                            subtitle: ingressKeywords(body: bodyID, signIndex: currentSign),
                             symbol: "sparkles",
                             tint: body.color
                         )
@@ -336,7 +409,7 @@ final class StarPathViewModel {
                                 date: stationDate,
                                 kind: isRetrogradeAfterStation ? .stationRetrograde : .stationDirect,
                                 title: isRetrogradeAfterStation ? "\(body.name) stations retrograde" : "\(body.name) stations direct",
-                                subtitle: isRetrogradeAfterStation ? "Apparent westward motion begins" : "Apparent eastward motion resumes",
+                                subtitle: stationKeywords(body: bodyID, isRetrograde: isRetrogradeAfterStation),
                                 symbol: isRetrogradeAfterStation ? "arrow.uturn.backward.circle" : "arrow.uturn.forward.circle",
                                 tint: body.color
                             )
@@ -385,9 +458,12 @@ final class StarPathViewModel {
                                     date: eventDate,
                                     kind: .conjunction,
                                     title: "\(bodyA.name) conjunct \(bodyB.name)",
-                                    subtitle: "Geocentric conjunction",
+                                    subtitle: "\(aspectKeywords(bodyA: a, bodyB: b, aspectAngle: 0)) · \(signContext(bodyA: a, bodyB: b, at: eventDate))",
                                     symbol: "circle.hexagongrid",
-                                    tint: tint
+                                    tint: tint,
+                                    bodyA: a,
+                                    bodyB: b,
+                                    aspectAngle: 0
                                 )
                             )
                             lastEventDate = eventDate
@@ -435,9 +511,12 @@ final class StarPathViewModel {
                                     date: eventDate,
                                     kind: .opposition,
                                     title: "\(bodyA.name) opposite \(bodyB.name)",
-                                    subtitle: "Geocentric opposition",
+                                    subtitle: "\(aspectKeywords(bodyA: a, bodyB: b, aspectAngle: 180)) · \(signContext(bodyA: a, bodyB: b, at: eventDate))",
                                     symbol: "arrow.left.and.right.circle",
-                                    tint: tint
+                                    tint: tint,
+                                    bodyA: a,
+                                    bodyB: b,
+                                    aspectAngle: 180
                                 )
                             )
                             lastEventDate = eventDate
@@ -683,6 +762,47 @@ final class StarPathViewModel {
         return deduped
     }
 
+    // MARK: - Orb Curve Sampling
+
+    func orbCurveSamples(bodyA: String, bodyB: String, aspectAngle: Double,
+                         centerDate: Date, windowDays: Int = 60, maxOrb: Double = 15) -> [OrbSample] {
+        let stepSeconds = TimeInterval(12 * 3600)
+        let totalSamples = windowDays * 2 * 2 // 12-hour steps across ±windowDays
+        let startDate = centerDate.addingTimeInterval(-Double(windowDays) * 86_400)
+
+        var samples: [OrbSample] = []
+        for i in 0...totalSamples {
+            let date = startDate.addingTimeInterval(Double(i) * stepSeconds)
+            let lonA = longitude(of: bodyA, at: date)
+            let lonB = longitude(of: bodyB, at: date)
+
+            let rawOrb: Double
+            if aspectAngle == 0 {
+                rawOrb = abs(signedDelta(lonA, lonB))
+            } else {
+                rawOrb = abs(abs(signedDelta(lonA, lonB)) - aspectAngle)
+            }
+
+            // Clamp to maxOrb so curve meets baseline at edges
+            let orb = min(rawOrb, maxOrb)
+
+            // Use the slower body's sign for coloring
+            let slowerBody = isSlowerBody(bodyB, than: bodyA) ? bodyB : bodyA
+            let slowerLon = slowerBody == bodyA ? lonA : lonB
+            let signIdx = Int(normalizeAngle(slowerLon) / 30) % 12
+
+            samples.append(OrbSample(date: date, orb: orb, signIndex: signIdx))
+        }
+        return samples
+    }
+
+    private func isSlowerBody(_ a: String, than b: String) -> Bool {
+        let order = ["moon", "sun", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]
+        let idxA = order.firstIndex(of: a) ?? 0
+        let idxB = order.firstIndex(of: b) ?? 0
+        return idxA > idxB
+    }
+
     private func longitude(of bodyID: String, at date: Date) -> Double {
         geocentricLongitudes(for: date).longitude(for: bodyID)
     }
@@ -740,17 +860,13 @@ final class StarPathViewModel {
     // MARK: - Formatted Timestamp
 
     var formattedTimestamp: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        formatter.timeZone = .current
-        return formatter.string(from: viewDate)
+        StarPathDateFormats.timestamp.string(from: viewDate)
     }
 
     // MARK: - Settings Persistence
 
     func saveSettings() {
-        let ud = UserDefaults.standard
+        let ud = userDefaults
         ud.set(options.showStars, forKey: SettingsKey.showStars)
         ud.set(options.showLabels, forKey: SettingsKey.showLabels)
         ud.set(options.showDrift, forKey: SettingsKey.showDrift)
@@ -765,7 +881,7 @@ final class StarPathViewModel {
     }
 
     private func loadSettings() {
-        let ud = UserDefaults.standard
+        let ud = userDefaults
         // Only load if keys exist (first launch uses defaults)
         if ud.object(forKey: SettingsKey.showStars) != nil {
             options.showStars = ud.bool(forKey: SettingsKey.showStars)

@@ -10,7 +10,16 @@ import SwiftUI
 
 struct PlanetDetailView: View {
     let info: PlanetDetailInfo
+    let aspectEvents: [SkyEvent]
     let onDismiss: () -> Void
+    let onSelectAspect: ((SkyEvent) -> Void)?
+
+    init(info: PlanetDetailInfo, aspectEvents: [SkyEvent] = [], onDismiss: @escaping () -> Void, onSelectAspect: ((SkyEvent) -> Void)? = nil) {
+        self.info = info
+        self.aspectEvents = aspectEvents
+        self.onDismiss = onDismiss
+        self.onSelectAspect = onSelectAspect
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -51,6 +60,11 @@ struct PlanetDetailView: View {
                 } else if abs(info.dailyMotion) < 0.05 && info.id != "sun" {
                     statusBadge(text: "Stationary", color: .orange)
                 }
+            }
+
+            // Aspects section
+            if !aspectEvents.isEmpty {
+                aspectsSection
             }
 
             Spacer()
@@ -135,6 +149,84 @@ struct PlanetDetailView: View {
                 .foregroundStyle(.white)
         }
         .padding(.vertical, 10)
+    }
+
+    // MARK: - Aspects Section
+
+    private var aspectsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Aspects")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+
+            VStack(spacing: 4) {
+                ForEach(aspectEvents.prefix(4)) { event in
+                    aspectRow(event)
+                }
+            }
+        }
+        .padding(.top, 16)
+    }
+
+    private func aspectRow(_ event: SkyEvent) -> some View {
+        let otherBodyId = (event.bodyA == info.id) ? event.bodyB : event.bodyA
+        let otherBody = celestialBodies.first(where: { $0.id == otherBodyId })
+
+        return HStack(spacing: 8) {
+            // Aspect glyph
+            Text(aspectGlyphFor(event.aspectAngle))
+                .font(.system(size: 14))
+                .foregroundStyle(.white.opacity(0.6))
+                .frame(width: 20)
+
+            // Other planet symbol + name
+            if let other = otherBody {
+                Text("\(other.symbol)\u{FE0E}")
+                    .font(.system(size: 15))
+                    .foregroundStyle(other.color)
+                Text(other.name)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.primary)
+            }
+
+            Spacer()
+
+            // Keywords
+            if let bodyA = event.bodyA, let bodyB = event.bodyB, let angle = event.aspectAngle {
+                Text(aspectKeywords(bodyA: bodyA, bodyB: bodyB, aspectAngle: angle))
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Image(systemName: "chart.line.uptrend.xyaxis")
+                .font(.system(size: 10))
+                .foregroundStyle(event.tint.opacity(0.5))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.white.opacity(0.06), lineWidth: 0.5)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onSelectAspect?(event)
+        }
+    }
+
+    private func aspectGlyphFor(_ angle: Double?) -> String {
+        switch angle {
+        case 0:   return "☌"
+        case 180: return "☍"
+        case 90:  return "□"
+        case 120: return "△"
+        case 60:  return "⚹"
+        default:  return "●"
+        }
     }
 
     // MARK: - Status Badge
