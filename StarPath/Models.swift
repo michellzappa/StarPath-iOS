@@ -7,6 +7,20 @@
 
 import SwiftUI
 
+enum StarPathSharedDefaults {
+    static let appGroupIdentifier = "group.AestheticHermetics.StarPath"
+    static let invertZodiacOrderKey = "sp_invertZodiacOrder"
+
+    static var appDefaults: UserDefaults {
+        UserDefaults(suiteName: appGroupIdentifier) ?? .standard
+    }
+}
+
+func zodiacAxisFraction(relativeDegrees: Double, inverted: Bool) -> Double {
+    let displayDegrees = inverted ? -relativeDegrees : relativeDegrees
+    return (displayDegrees + 180) / 360
+}
+
 // MARK: - Zodiac Signs
 
 struct ZodiacSign: Identifiable {
@@ -53,15 +67,15 @@ struct CelestialBody: Identifiable {
 }
 
 let celestialBodies: [CelestialBody] = [
-    CelestialBody(id: "sun", name: "Sol", symbol: "☉", color: Color(red: 1.0, green: 0.851, blue: 0.553)),
-    CelestialBody(id: "moon", name: "Moon", symbol: "☽", color: Color(red: 0.839, green: 0.871, blue: 1.0)),
-    CelestialBody(id: "mercury", name: "Mercury", symbol: "☿", color: Color(red: 0.784, green: 0.961, blue: 1.0)),
-    CelestialBody(id: "venus", name: "Venus", symbol: "♀", color: Color(red: 1.0, green: 0.839, blue: 0.918)),
-    CelestialBody(id: "mars", name: "Mars", symbol: "♂", color: Color(red: 1.0, green: 0.714, blue: 0.635)),
-    CelestialBody(id: "jupiter", name: "Jupiter", symbol: "♃", color: Color(red: 0.976, green: 0.843, blue: 0.694)),
-    CelestialBody(id: "saturn", name: "Saturn", symbol: "♄", color: Color(red: 1.0, green: 0.910, blue: 0.655)),
-    CelestialBody(id: "uranus", name: "Uranus", symbol: "♅", color: Color(red: 0.675, green: 0.953, blue: 1.0)),
-    CelestialBody(id: "neptune", name: "Neptune", symbol: "♆", color: Color(red: 0.718, green: 0.718, blue: 1.0)),
+    CelestialBody(id: "sun", name: "Sol", symbol: "☉", color: Color(red: 1.00, green: 0.85, blue: 0.40)),
+    CelestialBody(id: "moon", name: "Moon", symbol: "☽", color: Color(red: 0.78, green: 0.78, blue: 0.80)),
+    CelestialBody(id: "mercury", name: "Mercury", symbol: "☿", color: Color(red: 0.72, green: 0.66, blue: 0.58)),
+    CelestialBody(id: "venus", name: "Venus", symbol: "♀", color: Color(red: 0.96, green: 0.86, blue: 0.62)),
+    CelestialBody(id: "mars", name: "Mars", symbol: "♂", color: Color(red: 0.82, green: 0.42, blue: 0.28)),
+    CelestialBody(id: "jupiter", name: "Jupiter", symbol: "♃", color: Color(red: 0.86, green: 0.74, blue: 0.58)),
+    CelestialBody(id: "saturn", name: "Saturn", symbol: "♄", color: Color(red: 0.92, green: 0.82, blue: 0.58)),
+    CelestialBody(id: "uranus", name: "Uranus", symbol: "♅", color: Color(red: 0.62, green: 0.86, blue: 0.88)),
+    CelestialBody(id: "neptune", name: "Neptune", symbol: "♆", color: Color(red: 0.32, green: 0.46, blue: 0.84)),
 ]
 
 // MARK: - View Options
@@ -72,8 +86,12 @@ struct ViewOptions {
     var showDrift: Bool = true
     var showTime: Bool = true
     var showMoon: Bool = true
+    var showWheel: Bool = false
+    var heliocentricWheel: Bool = false
+    var realisticPlanets: Bool = false
     var lockZodiac: Bool = false
     var centerSignIndex: Int = 0
+    var invertZodiacOrder: Bool = false
 
     /// The reference longitude: either the Sun's position, or a locked sign center
     func referenceLongitude(sunLon: Double) -> Double {
@@ -95,7 +113,11 @@ struct PositionedBody: Identifiable {
 
     /// Maps relative degrees to a 0...1 fraction along the axis
     var axisFraction: Double {
-        (relativeDegrees + 180) / 360
+        zodiacAxisFraction(relativeDegrees: relativeDegrees, inverted: false)
+    }
+
+    func axisFraction(inverted: Bool) -> Double {
+        zodiacAxisFraction(relativeDegrees: relativeDegrees, inverted: inverted)
     }
 
     /// Whether this body can ever transit in front of the Sun (interior bodies only)
@@ -175,6 +197,14 @@ struct PlanetDetailInfo: Identifiable {
 
 struct TrendData {
     let series: [String: [Double]] // body id -> array of relative longitudes
+    let sampleCount: Int
+    let centerIndex: Int
+}
+
+// MARK: - Helio Trend Data
+
+struct HelioTrendData {
+    let series: [String: [Double]] // body id -> array of absolute heliocentric longitudes
     let sampleCount: Int
     let centerIndex: Int
 }

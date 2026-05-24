@@ -168,7 +168,7 @@ struct AspectOrbSheet: View {
             aspectAngle: event.aspectAngle ?? 0,
             centerDate: event.date
         )
-        AspectOrbView(samples: samples, event: event, onJump: onJump)
+        AspectOrbView(samples: samples, event: event, realisticPlanets: vm.options.realisticPlanets, onJump: onJump)
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
     }
@@ -250,11 +250,11 @@ struct WidgetGuideSheet: View {
         ZStack {
             RoundedRectangle(cornerRadius: 12).fill(Color.black)
             HStack(spacing: 8) {
-                Circle().fill(Color(red: 1, green: 0.85, blue: 0.55)).frame(width: 16, height: 16)
-                Circle().fill(Color(red: 0.84, green: 0.87, blue: 1.0)).frame(width: 12, height: 12)
-                Circle().fill(Color(red: 0.78, green: 0.96, blue: 1.0)).frame(width: 12, height: 12)
-                Circle().fill(Color(red: 1.0, green: 0.71, blue: 0.63)).frame(width: 12, height: 12)
-                Circle().fill(Color(red: 0.72, green: 0.72, blue: 1.0)).frame(width: 12, height: 12)
+                PlanetSphereView(planet: celestialBodies.first { $0.id == "sun" }!, diameter: 16)
+                PlanetSphereView(planet: celestialBodies.first { $0.id == "moon" }!, diameter: 12)
+                PlanetSphereView(planet: celestialBodies.first { $0.id == "mercury" }!, diameter: 12)
+                PlanetSphereView(planet: celestialBodies.first { $0.id == "mars" }!, diameter: 12)
+                PlanetSphereView(planet: celestialBodies.first { $0.id == "neptune" }!, diameter: 12)
             }
         }
     }

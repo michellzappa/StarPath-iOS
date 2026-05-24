@@ -12,6 +12,7 @@ import SwiftUI
 
 struct StarfieldView: View {
     let date: Date
+    var topDown: Bool = false
 
     // Star configuration
     private static let stars = StarCatalog.makeStars(count: 2400, seed: 42)
@@ -24,7 +25,7 @@ struct StarfieldView: View {
             let cy = h / 2
 
             // Sphere fills the full screen
-            let radius = h
+            let radius = max(w, h)
 
             // Rotation driven by Sun's ecliptic longitude
             let d = daysSinceJ2000(date)
@@ -35,15 +36,23 @@ struct StarfieldView: View {
             let sinR = sin(rotAngle)
 
             for star in Self.stars {
-                let x = star.x
+                var x = star.x
                 var y = star.y
                 var z = star.z
 
-                // Rotation around X axis — pure top-to-bottom hamster wheel
-                let ry = y * cosR - z * sinR
-                let rz = y * sinR + z * cosR
-                y = ry
-                z = rz
+                if topDown {
+                    // Rotation around Z axis — spins around center
+                    let rx = x * cosR - y * sinR
+                    let ry = x * sinR + y * cosR
+                    x = rx
+                    y = ry
+                } else {
+                    // Rotation around X axis — top-to-bottom hamster wheel
+                    let ry = y * cosR - z * sinR
+                    let rz = y * sinR + z * cosR
+                    y = ry
+                    z = rz
+                }
 
                 // Only draw front hemisphere
                 guard z > -0.05 else { continue }

@@ -9,6 +9,7 @@
 import SwiftUI
 import UIKit
 import Observation
+import WidgetKit
 
 @Observable
 final class StarPathViewModel {
@@ -18,8 +19,10 @@ final class StarPathViewModel {
     var options: ViewOptions = ViewOptions()
     var positionedBodies: [PositionedBody] = []
     var currentState: GeocentricState?
+    var helioState: HeliocentricState?
     var depthContext: DepthContext?
     var trendData: TrendData?
+    var helioTrendData: HelioTrendData?
     var selectedStep: TimeStep = .day
     var moonPhaseIcon: String = "moonphase.full.moon"
     var upcomingEvents: [SkyEvent] = []
@@ -56,8 +59,12 @@ final class StarPathViewModel {
         static let showDrift = "sp_showDrift"
         static let showTime = "sp_showTime"
         static let showMoon = "sp_showMoon"
+        static let showWheel = "sp_showWheel"
+        static let heliocentricWheel = "sp_heliocentricWheel"
+        static let realisticPlanets = "sp_realisticPlanets"
         static let lockZodiac = "sp_lockZodiac"
         static let centerSignIndex = "sp_centerSignIndex"
+        static let invertZodiacOrder = StarPathSharedDefaults.invertZodiacOrderKey
         static let selectedStep = "sp_selectedStep"
         static let savedDates = "sp_savedDates"
     }
@@ -66,13 +73,14 @@ final class StarPathViewModel {
         let minuteBucket: Int
         let lockZodiac: Bool
         let centerSignIndex: Int
+        let showWheel: Bool
     }
 
     // MARK: - Init
 
     init(
         initialDate: Date = Date(),
-        userDefaults: UserDefaults = .standard,
+        userDefaults: UserDefaults = StarPathSharedDefaults.appDefaults,
         startsLiveUpdates: Bool = true
     ) {
         self.viewDate = initialDate
@@ -145,6 +153,7 @@ final class StarPathViewModel {
     func update() {
         let state = geocentricLongitudes(for: viewDate)
         currentState = state
+        helioState = heliocentricLongitudes(for: viewDate)
         let depth = geocentricDepthContext(for: viewDate)
         depthContext = depth
         let ref = options.referenceLongitude(sunLon: state.sun)
@@ -232,6 +241,7 @@ final class StarPathViewModel {
     private func updateTrendDataIfNeeded() {
         guard options.showDrift else {
             trendData = nil
+            helioTrendData = nil
             trendCacheKey = nil
             return
         }
@@ -240,6 +250,11 @@ final class StarPathViewModel {
         guard trendCacheKey != cacheKey || trendData == nil else { return }
 
         trendData = buildTrendData(baseDate: viewDate)
+        if options.showWheel {
+            helioTrendData = buildHelioTrendData(baseDate: viewDate)
+        } else {
+            helioTrendData = nil
+        }
         trendCacheKey = cacheKey
     }
 
@@ -247,7 +262,8 @@ final class StarPathViewModel {
         TrendCacheKey(
             minuteBucket: Int(date.timeIntervalSince1970 / trendRefreshInterval),
             lockZodiac: options.lockZodiac,
-            centerSignIndex: options.centerSignIndex
+            centerSignIndex: options.centerSignIndex,
+            showWheel: options.showWheel
         )
     }
 
@@ -278,6 +294,30 @@ final class StarPathViewModel {
         }
 
         return TrendData(series: series, sampleCount: sampleCount, centerIndex: centerIndex)
+    }
+
+    private func buildHelioTrendData(baseDate: Date) -> HelioTrendData {
+        let stepMs = Double(trendStepHours) * 3600
+        let halfWindowMs = Double(trendWindowDays) * 86400
+        let sampleCount = Int((halfWindowMs * 2) / stepMs) + 1
+        let centerIndex = sampleCount / 2
+
+        let bodyIds = ["mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"]
+        var series: [String: [Double]] = [:]
+        for id in bodyIds {
+            series[id] = []
+        }
+
+        for i in 0..<sampleCount {
+            let dt = baseDate.addingTimeInterval(Double(i - centerIndex) * stepMs)
+            let helio = heliocentricLongitudes(for: dt)
+
+            for id in bodyIds {
+                series[id]?.append(helio.longitude(for: id))
+            }
+        }
+
+        return HelioTrendData(series: series, sampleCount: sampleCount, centerIndex: centerIndex)
     }
 
     // MARK: - Planet Detail
@@ -872,12 +912,17 @@ final class StarPathViewModel {
         ud.set(options.showDrift, forKey: SettingsKey.showDrift)
         ud.set(options.showTime, forKey: SettingsKey.showTime)
         ud.set(options.showMoon, forKey: SettingsKey.showMoon)
+        ud.set(options.showWheel, forKey: SettingsKey.showWheel)
+        ud.set(options.heliocentricWheel, forKey: SettingsKey.heliocentricWheel)
+        ud.set(options.realisticPlanets, forKey: SettingsKey.realisticPlanets)
         ud.set(options.lockZodiac, forKey: SettingsKey.lockZodiac)
         ud.set(options.centerSignIndex, forKey: SettingsKey.centerSignIndex)
+        ud.set(options.invertZodiacOrder, forKey: SettingsKey.invertZodiacOrder)
         ud.set(selectedStep.rawValue, forKey: SettingsKey.selectedStep)
         if let data = try? JSONEncoder().encode(savedDates) {
             ud.set(data, forKey: SettingsKey.savedDates)
         }
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     private func loadSettings() {
@@ -898,11 +943,23 @@ final class StarPathViewModel {
         if ud.object(forKey: SettingsKey.showMoon) != nil {
             options.showMoon = ud.bool(forKey: SettingsKey.showMoon)
         }
+        if ud.object(forKey: SettingsKey.showWheel) != nil {
+            options.showWheel = ud.bool(forKey: SettingsKey.showWheel)
+        }
+        if ud.object(forKey: SettingsKey.heliocentricWheel) != nil {
+            options.heliocentricWheel = ud.bool(forKey: SettingsKey.heliocentricWheel)
+        }
+        if ud.object(forKey: SettingsKey.realisticPlanets) != nil {
+            options.realisticPlanets = ud.bool(forKey: SettingsKey.realisticPlanets)
+        }
         if ud.object(forKey: SettingsKey.lockZodiac) != nil {
             options.lockZodiac = ud.bool(forKey: SettingsKey.lockZodiac)
         }
         if ud.object(forKey: SettingsKey.centerSignIndex) != nil {
             options.centerSignIndex = ud.integer(forKey: SettingsKey.centerSignIndex)
+        }
+        if ud.object(forKey: SettingsKey.invertZodiacOrder) != nil {
+            options.invertZodiacOrder = ud.bool(forKey: SettingsKey.invertZodiacOrder)
         }
         if let stepRaw = ud.string(forKey: SettingsKey.selectedStep),
            let step = TimeStep(rawValue: stepRaw) {

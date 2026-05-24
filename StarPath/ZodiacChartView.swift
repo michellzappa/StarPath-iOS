@@ -67,11 +67,13 @@ struct ZodiacChartView: View {
         guard !labelBodies.isEmpty else { return [:] }
 
         // Sort by Y position (axisFraction * height)
-        let sorted = labelBodies.sorted { $0.axisFraction < $1.axisFraction }
+        let sorted = labelBodies.sorted {
+            $0.axisFraction(inverted: options.invertZodiacOrder) < $1.axisFraction(inverted: options.invertZodiacOrder)
+        }
 
         // Initial label Y = planet Y (center of label)
         var labelYs: [(id: String, y: CGFloat)] = sorted.map { pb in
-            (pb.id, CGFloat(pb.axisFraction) * size.height)
+            (pb.id, CGFloat(pb.axisFraction(inverted: options.invertZodiacOrder)) * size.height)
         }
 
         // Push overlapping labels apart (iterative relaxation)
@@ -93,7 +95,7 @@ struct ZodiacChartView: View {
         // Compute offsets (delta from original position)
         var offsets: [String: CGFloat] = [:]
         for (idx, pb) in sorted.enumerated() {
-            let originalY = CGFloat(pb.axisFraction) * size.height
+            let originalY = CGFloat(pb.axisFraction(inverted: options.invertZodiacOrder)) * size.height
             let resolvedY = labelYs[idx].y
             let delta = resolvedY - originalY
             if abs(delta) > 0.5 {
@@ -184,11 +186,11 @@ struct ZodiacChartView: View {
         ForEach(0..<12, id: \.self) { k in
             let boundaryLon = Double(k) * 30
             let relBoundary = signedDelta(boundaryLon, ref)
-            let frac = (relBoundary + 180) / 360
+            let frac = zodiacAxisFraction(relativeDegrees: relBoundary, inverted: options.invertZodiacOrder)
 
             let signCenterLon = boundaryLon + 15
             let relCenter = signedDelta(signCenterLon, ref)
-            let fracCenter = (relCenter + 180) / 360
+            let fracCenter = zodiacAxisFraction(relativeDegrees: relCenter, inverted: options.invertZodiacOrder)
 
             // Tick mark
             zodiacTick(frac: frac, size: size)
@@ -238,7 +240,7 @@ struct ZodiacChartView: View {
 
     @ViewBuilder
     private func planetNode(pb: PositionedBody, size: CGSize, labelYOffset: CGFloat) -> some View {
-        let frac = pb.axisFraction
+        let frac = pb.axisFraction(inverted: options.invertZodiacOrder)
 
         if isVertical {
             let y = frac * size.height
@@ -266,11 +268,11 @@ struct ZodiacChartView: View {
                         ]),
                         center: .init(x: 0.36, y: 0.34),
                         startRadius: 0,
-                        endRadius: 28
+                        endRadius: 20
                     )
                 )
-                .frame(width: 55, height: 55)
-                .shadow(color: Color(red: 1, green: 0.808, blue: 0.459).opacity(0.75), radius: 15)
+                .frame(width: 38, height: 38)
+                .shadow(color: Color(red: 1, green: 0.808, blue: 0.459).opacity(0.75), radius: 12)
                 .overlay(
                     Circle()
                         .stroke(Color(red: 1, green: 0.851, blue: 0.553).opacity(0.3), lineWidth: 2)
@@ -282,31 +284,38 @@ struct ZodiacChartView: View {
             let fillColor = planetColor.mix(with: .black, by: 0.55)
             let isMoon = pb.id == "moon"
             ZStack {
-                // Planet circle — tappable
-                ZStack {
-                    Circle()
-                        .fill(fillColor)
-                        .frame(width: 31, height: 31)
-                        .overlay(
-                            Circle()
-                                .stroke(planetColor.opacity(0.5), lineWidth: 1)
-                        )
-                        .shadow(color: planetColor.opacity(0.35), radius: 9)
-
-                    if isMoon {
-                        Image(systemName: moonPhaseIcon)
-                            .font(.system(size: 19, weight: .bold))
-                            .foregroundColor(planetColor)
-                            .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
+                // Planet body — tappable
+                Group {
+                    if options.realisticPlanets {
+                        PlanetSphereView(planet: pb.body, diameter: 26)
                             .rotationEffect(textRotation)
-                            .allowsHitTesting(false)
                     } else {
-                        Text("\(pb.body.symbol)\u{FE0E}")
-                            .font(.system(size: symbolSize(for: pb.body.symbol), weight: .bold))
-                            .foregroundColor(planetColor)
-                            .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
-                            .rotationEffect(textRotation)
-                            .allowsHitTesting(false)
+                        ZStack {
+                            Circle()
+                                .fill(fillColor)
+                                .frame(width: 31, height: 31)
+                                .overlay(
+                                    Circle()
+                                        .stroke(planetColor.opacity(0.5), lineWidth: 1)
+                                )
+                                .shadow(color: planetColor.opacity(0.35), radius: 9)
+
+                            if isMoon {
+                                Image(systemName: moonPhaseIcon)
+                                    .font(.system(size: 19, weight: .bold))
+                                    .foregroundColor(planetColor)
+                                    .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
+                                    .rotationEffect(textRotation)
+                                    .allowsHitTesting(false)
+                            } else {
+                                Text("\(pb.body.symbol)\u{FE0E}")
+                                    .font(.system(size: symbolSize(for: pb.body.symbol), weight: .bold))
+                                    .foregroundColor(planetColor)
+                                    .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
+                                    .rotationEffect(textRotation)
+                                    .allowsHitTesting(false)
+                            }
+                        }
                     }
                 }
                 .contentShape(Circle())

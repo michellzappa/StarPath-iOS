@@ -12,6 +12,7 @@ struct AspectOrbView: View {
     let samples: [OrbSample]
     let event: SkyEvent
     let maxOrb: Double = 15
+    var realisticPlanets: Bool = false
     let onJump: () -> Void
 
     private let zodiacColors: [Color] = [
@@ -51,15 +52,23 @@ struct AspectOrbView: View {
             HStack(spacing: 8) {
                 if let a = celestialBodies.first(where: { $0.id == event.bodyA }),
                    let b = celestialBodies.first(where: { $0.id == event.bodyB }) {
-                    Text(a.symbol)
-                        .font(.system(size: 28))
-                        .foregroundStyle(a.color)
+                    if realisticPlanets {
+                        PlanetSphereView(planet: a, diameter: 28)
+                    } else {
+                        Text(a.symbol)
+                            .font(.system(size: 28))
+                            .foregroundStyle(a.color)
+                    }
                     Text(aspectGlyph)
                         .font(.system(size: 22))
                         .foregroundStyle(.white.opacity(0.7))
-                    Text(b.symbol)
-                        .font(.system(size: 28))
-                        .foregroundStyle(b.color)
+                    if realisticPlanets {
+                        PlanetSphereView(planet: b, diameter: 28)
+                    } else {
+                        Text(b.symbol)
+                            .font(.system(size: 28))
+                            .foregroundStyle(b.color)
+                    }
                 }
             }
             .padding(.top, 20)
@@ -128,120 +137,200 @@ struct AspectOrbView: View {
     // MARK: - Canvas
 
     private var curveCanvas: some View {
-        Canvas { context, size in
-            guard samples.count >= 2 else { return }
+        GeometryReader { geometry in
+            if let layout = chartLayout(for: geometry.size) {
+                ZStack {
+                    mountainFill(layout: layout)
 
-            let w = size.width
-            let h = size.height
-            let padX: Double = 40
-            let padBottom: Double = 28
-            let padTop: Double = 12
-            let chartW = w - padX * 2
-            let chartH = h - padTop - padBottom
-
-            let firstDate = samples.first!.date
-            let lastDate = samples.last!.date
-            let totalSeconds = lastDate.timeIntervalSince(firstDate)
-            guard totalSeconds > 0 else { return }
-
-            func xAt(_ date: Date) -> Double {
-                padX + (date.timeIntervalSince(firstDate) / totalSeconds) * chartW
-            }
-
-            func yAt(_ orb: Double) -> Double {
-                // Inverted: 0 orb = top, maxOrb = bottom
-                padTop + (orb / maxOrb) * chartH
-            }
-
-            // Build filled mountain by zodiac sign
-            let baseY = padTop + chartH
-
-            // Draw sign-colored fill segments using clip per sign region
-            var segStart = 0
-            for si in 1...samples.count {
-                let newSign = (si == samples.count) || (samples[si].signIndex != samples[segStart].signIndex)
-                if newSign {
-                    let signIdx = samples[segStart].signIndex
-                    let color = zodiacColors[signIdx]
-
-                    var clipPath = Path()
-                    // Left edge: vertical from baseline up to curve
-                    clipPath.move(to: CGPoint(x: xAt(samples[segStart].date), y: baseY))
-                    // Trace curve
-                    for k in segStart..<si {
-                        clipPath.addLine(to: CGPoint(x: xAt(samples[k].date), y: yAt(samples[k].orb)))
-                    }
-                    // Right edge: back down to baseline
-                    clipPath.addLine(to: CGPoint(x: xAt(samples[si - 1].date), y: baseY))
-                    clipPath.closeSubpath()
-
-                    context.fill(clipPath, with: .color(color.opacity(0.75)))
-
-                    if si < samples.count {
-                        segStart = si
+                    Canvas { context, _ in
+                        drawChartChrome(context: context, layout: layout)
                     }
                 }
+                .compositingGroup()
+            } else {
+                emptyState
             }
-
-            // Orb guide lines
-            for orbLine in [1.0, 5.0, 10.0] {
-                if orbLine < maxOrb {
-                    let y = yAt(orbLine)
-                    var path = Path()
-                    path.move(to: CGPoint(x: padX, y: y))
-                    path.addLine(to: CGPoint(x: padX + chartW, y: y))
-                    context.stroke(path, with: .color(.white.opacity(0.12)),
-                                   style: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
-
-                    let label = "\(Int(orbLine))°"
-                    context.draw(Text(label)
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.35)),
-                        at: CGPoint(x: padX - 14, y: y))
-                }
-            }
-
-            // Exact line (0° orb)
-            let exactY = yAt(0)
-            var exactPath = Path()
-            exactPath.move(to: CGPoint(x: padX, y: exactY))
-            exactPath.addLine(to: CGPoint(x: padX + chartW, y: exactY))
-            context.stroke(exactPath, with: .color(.white.opacity(0.2)), lineWidth: 0.5)
-
-            // Baseline
-            var basePath = Path()
-            basePath.move(to: CGPoint(x: padX, y: baseY))
-            basePath.addLine(to: CGPoint(x: padX + chartW, y: baseY))
-            context.stroke(basePath, with: .color(.white.opacity(0.15)), lineWidth: 0.5)
-
-            // Stroke the curve outline
-            var strokePath = Path()
-            for (i, sample) in samples.enumerated() {
-                let pt = CGPoint(x: xAt(sample.date), y: yAt(sample.orb))
-                if i == 0 { strokePath.move(to: pt) }
-                else { strokePath.addLine(to: pt) }
-            }
-            context.stroke(strokePath, with: .color(.white.opacity(0.6)),
-                           style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
-
-            // Peak marker (exact date)
-            let exactX = xAt(event.date)
-            var peakLine = Path()
-            peakLine.move(to: CGPoint(x: exactX, y: exactY))
-            peakLine.addLine(to: CGPoint(x: exactX, y: baseY))
-            context.stroke(peakLine, with: .color(.white.opacity(0.25)),
-                           style: StrokeStyle(lineWidth: 0.5, dash: [3, 3]))
-
-            // Peak dot
-            let dotR: Double = 4
-            let dotRect = CGRect(x: exactX - dotR, y: exactY - dotR,
-                                  width: dotR * 2, height: dotR * 2)
-            context.fill(Path(ellipseIn: dotRect), with: .color(.white.opacity(0.9)))
-
-            // Month tick labels on X axis
-            drawMonthTicks(context: context, firstDate: firstDate, lastDate: lastDate,
-                            xAt: xAt, baseY: baseY)
         }
+    }
+
+    private struct ChartLayout {
+        let size: CGSize
+        let padX: Double
+        let padTop: Double
+        let padBottom: Double
+        let chartWidth: Double
+        let chartHeight: Double
+        let baseY: Double
+        let firstDate: Date
+        let lastDate: Date
+        let totalSeconds: Double
+
+        func xAt(_ date: Date) -> Double {
+            padX + (date.timeIntervalSince(firstDate) / totalSeconds) * chartWidth
+        }
+
+        func yAt(_ orb: Double, maxOrb: Double) -> Double {
+            padTop + (orb / maxOrb) * chartHeight
+        }
+    }
+
+    private func chartLayout(for size: CGSize) -> ChartLayout? {
+        guard let firstDate = samples.first?.date,
+              let lastDate = samples.last?.date else { return nil }
+
+        let totalSeconds = lastDate.timeIntervalSince(firstDate)
+        guard totalSeconds > 0 else { return nil }
+
+        let padX: Double = 40
+        let padBottom: Double = 28
+        let padTop: Double = 12
+        let chartWidth = size.width - padX * 2
+        let chartHeight = size.height - padTop - padBottom
+
+        return ChartLayout(
+            size: size,
+            padX: padX,
+            padTop: padTop,
+            padBottom: padBottom,
+            chartWidth: chartWidth,
+            chartHeight: chartHeight,
+            baseY: padTop + chartHeight,
+            firstDate: firstDate,
+            lastDate: lastDate,
+            totalSeconds: totalSeconds
+        )
+    }
+
+    @ViewBuilder
+    private func mountainFill(layout: ChartLayout) -> some View {
+        let areaPath = mountainPath(layout: layout)
+
+        ZStack {
+            areaPath.fill(
+                LinearGradient(
+                    colors: [
+                        event.tint.opacity(0.55),
+                        event.tint.opacity(0.18),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+
+            signBandOverlay(layout: layout)
+                .mask(
+                    areaPath.fill(.white)
+                )
+        }
+    }
+
+    @ViewBuilder
+    private func signBandOverlay(layout: ChartLayout) -> some View {
+        let segments = signSegments(layout: layout)
+
+        ZStack(alignment: .topLeading) {
+            ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
+                Rectangle()
+                    .fill(zodiacColors[segment.signIndex].opacity(0.42))
+                    .frame(width: segment.width, height: layout.chartHeight)
+                    .offset(x: segment.startX, y: layout.padTop)
+            }
+        }
+    }
+
+    private func signSegments(layout: ChartLayout) -> [(startX: CGFloat, width: CGFloat, signIndex: Int)] {
+        var segments: [(startX: CGFloat, width: CGFloat, signIndex: Int)] = []
+        var segStart = 0
+
+        for si in 1...samples.count {
+            let newSign = (si == samples.count) || (samples[si].signIndex != samples[segStart].signIndex)
+            if newSign {
+                let startX = layout.xAt(samples[segStart].date)
+                let endX = layout.xAt(samples[si - 1].date)
+                segments.append((
+                    startX: startX,
+                    width: max(endX - startX, 1),
+                    signIndex: samples[segStart].signIndex
+                ))
+
+                if si < samples.count {
+                    segStart = si
+                }
+            }
+        }
+
+        return segments
+    }
+
+    private func drawChartChrome(context: GraphicsContext, layout: ChartLayout) {
+        // Orb guide lines
+        for orbLine in [1.0, 5.0, 10.0] {
+            if orbLine < maxOrb {
+                let y = layout.yAt(orbLine, maxOrb: maxOrb)
+                var path = Path()
+                path.move(to: CGPoint(x: layout.padX, y: y))
+                path.addLine(to: CGPoint(x: layout.padX + layout.chartWidth, y: y))
+                context.stroke(path, with: .color(.white.opacity(0.12)),
+                               style: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
+
+                let label = "\(Int(orbLine))°"
+                context.draw(Text(label)
+                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.35)),
+                    at: CGPoint(x: layout.padX - 14, y: y))
+            }
+        }
+
+        // Exact line (0° orb)
+        let exactY = layout.yAt(0, maxOrb: maxOrb)
+        var exactPath = Path()
+        exactPath.move(to: CGPoint(x: layout.padX, y: exactY))
+        exactPath.addLine(to: CGPoint(x: layout.padX + layout.chartWidth, y: exactY))
+        context.stroke(exactPath, with: .color(.white.opacity(0.2)), lineWidth: 0.5)
+
+        // Baseline
+        var basePath = Path()
+        basePath.move(to: CGPoint(x: layout.padX, y: layout.baseY))
+        basePath.addLine(to: CGPoint(x: layout.padX + layout.chartWidth, y: layout.baseY))
+        context.stroke(basePath, with: .color(.white.opacity(0.15)), lineWidth: 0.5)
+
+        // Stroke the curve outline
+        var strokePath = Path()
+        for (index, sample) in samples.enumerated() {
+            let point = CGPoint(x: layout.xAt(sample.date), y: layout.yAt(sample.orb, maxOrb: maxOrb))
+            if index == 0 {
+                strokePath.move(to: point)
+            } else {
+                strokePath.addLine(to: point)
+            }
+        }
+        context.stroke(strokePath, with: .color(.white.opacity(0.82)),
+                       style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+
+        // Peak marker (exact date)
+        let exactX = layout.xAt(event.date)
+        var peakLine = Path()
+        peakLine.move(to: CGPoint(x: exactX, y: exactY))
+        peakLine.addLine(to: CGPoint(x: exactX, y: layout.baseY))
+        context.stroke(peakLine, with: .color(.white.opacity(0.25)),
+                       style: StrokeStyle(lineWidth: 0.5, dash: [3, 3]))
+
+        let dotRadius: Double = 4
+        let dotRect = CGRect(
+            x: exactX - dotRadius,
+            y: exactY - dotRadius,
+            width: dotRadius * 2,
+            height: dotRadius * 2
+        )
+        context.fill(Path(ellipseIn: dotRect), with: .color(.white.opacity(0.9)))
+
+        drawMonthTicks(
+            context: context,
+            firstDate: layout.firstDate,
+            lastDate: layout.lastDate,
+            xAt: layout.xAt,
+            baseY: layout.baseY
+        )
     }
 
 
@@ -280,6 +369,24 @@ struct AspectOrbView: View {
 
             components.month! += 1
         }
+    }
+
+    private func mountainPath(layout: ChartLayout) -> Path {
+        var path = Path()
+        guard let firstSample = samples.first, let lastSample = samples.last else {
+            return path
+        }
+
+        path.move(to: CGPoint(x: layout.xAt(firstSample.date), y: layout.baseY))
+        for sample in samples {
+            path.addLine(to: CGPoint(
+                x: layout.xAt(sample.date),
+                y: layout.yAt(sample.orb, maxOrb: maxOrb)
+            ))
+        }
+        path.addLine(to: CGPoint(x: layout.xAt(lastSample.date), y: layout.baseY))
+        path.closeSubpath()
+        return path
     }
 
     // MARK: - Legend

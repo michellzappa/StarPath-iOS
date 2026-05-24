@@ -11,12 +11,14 @@ import SwiftUI
 struct PlanetDetailView: View {
     let info: PlanetDetailInfo
     let aspectEvents: [SkyEvent]
+    let realisticPlanets: Bool
     let onDismiss: () -> Void
     let onSelectAspect: ((SkyEvent) -> Void)?
 
-    init(info: PlanetDetailInfo, aspectEvents: [SkyEvent] = [], onDismiss: @escaping () -> Void, onSelectAspect: ((SkyEvent) -> Void)? = nil) {
+    init(info: PlanetDetailInfo, aspectEvents: [SkyEvent] = [], realisticPlanets: Bool = false, onDismiss: @escaping () -> Void, onSelectAspect: ((SkyEvent) -> Void)? = nil) {
         self.info = info
         self.aspectEvents = aspectEvents
+        self.realisticPlanets = realisticPlanets
         self.onDismiss = onDismiss
         self.onSelectAspect = onSelectAspect
     }
@@ -111,6 +113,9 @@ struct PlanetDetailView: View {
                     )
                     .frame(width: 88, height: 88)
                     .shadow(color: info.body.color.opacity(0.6), radius: 24)
+            } else if realisticPlanets {
+                PlanetSphereView(planet: info.body, diameter: 76)
+                    .frame(width: 88, height: 88)
             } else {
                 ZStack {
                     Text("\(info.body.symbol)\u{FE0E}")

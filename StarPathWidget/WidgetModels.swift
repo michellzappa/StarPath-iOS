@@ -8,6 +8,20 @@
 
 import SwiftUI
 
+enum WidgetSharedDefaults {
+    static let appGroupIdentifier = "group.AestheticHermetics.StarPath"
+    static let invertZodiacOrderKey = "sp_invertZodiacOrder"
+
+    static var shared: UserDefaults {
+        UserDefaults(suiteName: appGroupIdentifier) ?? .standard
+    }
+}
+
+func zodiacAxisFraction(relativeDegrees: Double, inverted: Bool) -> Double {
+    let displayDegrees = inverted ? -relativeDegrees : relativeDegrees
+    return (displayDegrees + 180) / 360
+}
+
 // MARK: - Zodiac Signs
 
 struct ZodiacSign: Identifiable {
@@ -51,15 +65,15 @@ struct WidgetCelestialBody: Identifiable {
 }
 
 let widgetBodies: [WidgetCelestialBody] = [
-    WidgetCelestialBody(id: "sun", name: "Sun", symbol: "☉", color: Color(red: 1.0, green: 0.851, blue: 0.553)),
-    WidgetCelestialBody(id: "moon", name: "Moon", symbol: "☽", color: Color(red: 0.839, green: 0.871, blue: 1.0)),
-    WidgetCelestialBody(id: "mercury", name: "Mercury", symbol: "☿", color: Color(red: 0.784, green: 0.961, blue: 1.0)),
-    WidgetCelestialBody(id: "venus", name: "Venus", symbol: "♀", color: Color(red: 1.0, green: 0.839, blue: 0.918)),
-    WidgetCelestialBody(id: "mars", name: "Mars", symbol: "♂", color: Color(red: 1.0, green: 0.714, blue: 0.635)),
-    WidgetCelestialBody(id: "jupiter", name: "Jupiter", symbol: "♃", color: Color(red: 0.976, green: 0.843, blue: 0.694)),
-    WidgetCelestialBody(id: "saturn", name: "Saturn", symbol: "♄", color: Color(red: 1.0, green: 0.910, blue: 0.655)),
-    WidgetCelestialBody(id: "uranus", name: "Uranus", symbol: "♅", color: Color(red: 0.675, green: 0.953, blue: 1.0)),
-    WidgetCelestialBody(id: "neptune", name: "Neptune", symbol: "♆", color: Color(red: 0.718, green: 0.718, blue: 1.0)),
+    WidgetCelestialBody(id: "sun", name: "Sun", symbol: "☉", color: Color(red: 1.00, green: 0.85, blue: 0.40)),
+    WidgetCelestialBody(id: "moon", name: "Moon", symbol: "☽", color: Color(red: 0.78, green: 0.78, blue: 0.80)),
+    WidgetCelestialBody(id: "mercury", name: "Mercury", symbol: "☿", color: Color(red: 0.72, green: 0.66, blue: 0.58)),
+    WidgetCelestialBody(id: "venus", name: "Venus", symbol: "♀", color: Color(red: 0.96, green: 0.86, blue: 0.62)),
+    WidgetCelestialBody(id: "mars", name: "Mars", symbol: "♂", color: Color(red: 0.82, green: 0.42, blue: 0.28)),
+    WidgetCelestialBody(id: "jupiter", name: "Jupiter", symbol: "♃", color: Color(red: 0.86, green: 0.74, blue: 0.58)),
+    WidgetCelestialBody(id: "saturn", name: "Saturn", symbol: "♄", color: Color(red: 0.92, green: 0.82, blue: 0.58)),
+    WidgetCelestialBody(id: "uranus", name: "Uranus", symbol: "♅", color: Color(red: 0.62, green: 0.86, blue: 0.88)),
+    WidgetCelestialBody(id: "neptune", name: "Neptune", symbol: "♆", color: Color(red: 0.32, green: 0.46, blue: 0.84)),
 ]
 
 // MARK: - Widget Positioned Body
@@ -73,7 +87,11 @@ struct WidgetPositionedBody: Identifiable {
 
     /// Maps relative degrees to a 0...1 fraction along the horizontal axis
     var axisFraction: Double {
-        (relativeDegrees + 180) / 360
+        zodiacAxisFraction(relativeDegrees: relativeDegrees, inverted: false)
+    }
+
+    func axisFraction(inverted: Bool) -> Double {
+        zodiacAxisFraction(relativeDegrees: relativeDegrees, inverted: inverted)
     }
 
     /// Whether this body can ever transit in front of the Sun (interior bodies only)
@@ -116,4 +134,8 @@ func widgetDepthSortedBodies(_ bodies: [WidgetPositionedBody], sunLongitude: Dou
         }
         .sorted { $0.zOrder < $1.zOrder }
         .map(\.body)
+}
+
+func widgetInvertZodiacOrder() -> Bool {
+    WidgetSharedDefaults.shared.bool(forKey: WidgetSharedDefaults.invertZodiacOrderKey)
 }

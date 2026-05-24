@@ -203,27 +203,24 @@ function Slide1({ canvasW = IPHONE_W, canvasH = IPHONE_H }) {
       />
 
       {/* App icon */}
-      <div
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/screenshots/icon.png"
+        alt="Starpath icon"
+        draggable={false}
         style={{
           marginTop: canvasH * 0.08,
           width: canvasW * 0.15,
           height: canvasW * 0.15,
           borderRadius: canvasW * 0.033,
-          background: T.sunGold,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: canvasW * 0.07,
           boxShadow: "0 8px 40px rgba(255,217,141,0.3)",
           marginBottom: canvasW * 0.04,
         }}
-      >
-        ☉
-      </div>
+      />
 
       <Caption
         label="Starpath"
-        headline="The sky<br/>in your pocket."
+        headline="The sky<br/>you can&apos;t see."
         canvasW={canvasW}
       />
 
@@ -266,7 +263,7 @@ function Slide2({ canvasW = IPHONE_W, canvasH = IPHONE_H }) {
       <div style={{ marginTop: canvasH * 0.08 }}>
         <Caption
           label="Widgets"
-          headline="Your sky<br/>at a glance."
+          headline="Always there.<br/>Quietly changing."
           canvasW={canvasW}
         />
       </div>
@@ -290,7 +287,7 @@ function Slide2({ canvasW = IPHONE_W, canvasH = IPHONE_H }) {
   );
 }
 
-/* ─── Slide 3: Chart Detail ─────────────────────────────────── */
+/* ─── Slide 3: Geocentric Wheel ─────────────────────────────── */
 
 function Slide3({ canvasW = IPHONE_W, canvasH = IPHONE_H }) {
   return (
@@ -300,52 +297,50 @@ function Slide3({ canvasW = IPHONE_W, canvasH = IPHONE_H }) {
         height: canvasH,
         position: "relative",
         overflow: "hidden",
-        background: `linear-gradient(190deg, #11081F 0%, ${T.bg} 45%, ${T.deepBlue} 100%)`,
+        background: `linear-gradient(170deg, #0A0F22 0%, ${T.bg} 45%, #0E0820 100%)`,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
       }}
     >
-      <Stars count={65} seed={77} />
+      <Stars count={65} seed={314} />
 
-      {/* Violet ambient glow */}
+      {/* Subtle orbital glow */}
       <div
         style={{
           position: "absolute",
-          top: "55%",
-          left: "30%",
+          bottom: "30%",
+          left: "50%",
+          transform: "translateX(-50%)",
           width: canvasW * 0.7,
           height: canvasW * 0.7,
           borderRadius: "50%",
           background:
-            "radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%)",
+            "radial-gradient(circle, rgba(100,180,255,0.04) 0%, transparent 70%)",
           pointerEvents: "none",
         }}
       />
 
       <div style={{ marginTop: canvasH * 0.08 }}>
         <Caption
-          label="Drift Curves"
-          headline="See where<br/>planets go."
+          label="Three views"
+          headline="Same sky.<br/>New perspective."
           canvasW={canvasW}
         />
       </div>
 
-      {/* Phone — offset right for variety */}
+      {/* Phone — centered */}
       <div
         style={{
           position: "absolute",
           bottom: 0,
-          right: "-4%",
-          transform: "translateY(10%)",
-          width: "82%",
+          left: "50%",
+          transform: "translateX(-50%) translateY(12%)",
+          width: "84%",
         }}
       >
-        <Phone
-          src="/screenshots/app.png"
-          alt="Starpath zodiac chart with drift curves"
-        />
+        <Phone src="/screenshots/wheel.png" alt="Geocentric wheel view" />
       </div>
     </div>
   );
@@ -389,7 +384,7 @@ function Slide4({ canvasW = IPHONE_W, canvasH = IPHONE_H }) {
       <div style={{ marginTop: canvasH * 0.08 }}>
         <Caption
           label="Tap any planet"
-          headline="Every detail,<br/>one tap away."
+          headline="The data<br/>behind the symbol."
           canvasW={canvasW}
         />
       </div>
@@ -415,7 +410,7 @@ function Slide4({ canvasW = IPHONE_W, canvasH = IPHONE_H }) {
 const IPHONE_SLIDES = [
   { id: "hero", label: "Hero", Component: Slide1 },
   { id: "widget", label: "Widget", Component: Slide2 },
-  { id: "chart", label: "Chart", Component: Slide3 },
+  { id: "wheel", label: "Wheel", Component: Slide3 },
   { id: "details", label: "Details", Component: Slide4 },
 ];
 
@@ -637,7 +632,7 @@ export default function ScreenshotsPage() {
       </div>
 
       {/* Screenshot Grid */}
-      <div className="p-6 grid grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+      <div className="p-6 flex gap-6 overflow-x-auto max-w-full mx-auto [&>*]:min-w-[300px] [&>*]:flex-1">
         {IPHONE_SLIDES.map((slide, i) => (
           <ScreenshotPreview
             key={slide.id}

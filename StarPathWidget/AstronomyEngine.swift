@@ -285,10 +285,11 @@ func planetGeocentricLongitude(planet: String, d: Double) -> Double {
 
     let planetState = heliocentricState(planet: planet, d: d)
 
-    // Geocentric = heliocentric planet - heliocentric earth
-    let geoX = planetState.rect.x - earthRect.x
-    let geoY = planetState.rect.y - earthRect.y
-    let geoZ = planetState.rect.z - earthRect.z
+    // earthRect is the Sun's geocentric position (S − E), not Earth's heliocentric.
+    // planet_geo = planet_helio + sun_geo = (P−S) + (S−E) = P − E
+    let geoX = planetState.rect.x + earthRect.x
+    let geoY = planetState.rect.y + earthRect.y
+    let geoZ = planetState.rect.z + earthRect.z
 
     let geoSph = sphericalFromRectangular(RectCoord(x: geoX, y: geoY, z: geoZ))
     return geoSph.lon
@@ -301,9 +302,9 @@ func planetGeocentricDistance(planet: String, d: Double) -> Double {
     let earthRect = rectangularFromElements(orbitalElements(for: "earth", d: d))
     let planetState = heliocentricState(planet: planet, d: d)
 
-    let geoX = planetState.rect.x - earthRect.x
-    let geoY = planetState.rect.y - earthRect.y
-    let geoZ = planetState.rect.z - earthRect.z
+    let geoX = planetState.rect.x + earthRect.x
+    let geoY = planetState.rect.y + earthRect.y
+    let geoZ = planetState.rect.z + earthRect.z
 
     return sqrt(geoX * geoX + geoY * geoY + geoZ * geoZ)
 }

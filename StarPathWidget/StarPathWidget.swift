@@ -39,6 +39,7 @@ struct StarPathProvider: TimelineProvider {
 
 struct StarPathEntry: TimelineEntry {
     let date: Date
+    let invertZodiacOrder = widgetInvertZodiacOrder()
 
     var positionedBodies: [WidgetPositionedBody] {
         widgetPositionedBodies(for: date)
@@ -168,7 +169,7 @@ struct StarPathWidgetEntryView: View {
                     ForEach(0..<12, id: \.self) { k in
                         let boundaryLon = Double(k) * 30
                         let relBoundary = signedDelta(boundaryLon, sunLon)
-                        let frac = (relBoundary + 180) / 360
+                        let frac = zodiacAxisFraction(relativeDegrees: relBoundary, inverted: entry.invertZodiacOrder)
                         let x = frac * size.width
 
                         // Tick
@@ -180,7 +181,7 @@ struct StarPathWidgetEntryView: View {
                         // Sign glyph
                         let signCenterLon = boundaryLon + 15
                         let relCenter = signedDelta(signCenterLon, sunLon)
-                        let fracCenter = (relCenter + 180) / 360
+                        let fracCenter = zodiacAxisFraction(relativeDegrees: relCenter, inverted: entry.invertZodiacOrder)
                         let xCenter = fracCenter * size.width
 
                         Text("\(zodiacSigns[k].glyph)\u{FE0E}")
@@ -191,7 +192,7 @@ struct StarPathWidgetEntryView: View {
 
                     // Planet nodes (depth-sorted: back-to-front)
                     ForEach(entry.depthSortedBodies) { pb in
-                        let x = pb.axisFraction * size.width
+                        let x = pb.axisFraction(inverted: entry.invertZodiacOrder) * size.width
                         let y = size.height / 2
 
                         widgetPlanetNode(pb: pb)
@@ -244,7 +245,7 @@ struct StarPathWidgetEntryView: View {
                     ForEach(0..<12, id: \.self) { k in
                         let boundaryLon = Double(k) * 30
                         let relBoundary = signedDelta(boundaryLon, sunLon)
-                        let frac = (relBoundary + 180) / 360
+                        let frac = zodiacAxisFraction(relativeDegrees: relBoundary, inverted: entry.invertZodiacOrder)
                         let x = frac * size.width
 
                         Rectangle()
@@ -254,7 +255,7 @@ struct StarPathWidgetEntryView: View {
 
                         let signCenterLon = boundaryLon + 15
                         let relCenter = signedDelta(signCenterLon, sunLon)
-                        let fracCenter = (relCenter + 180) / 360
+                        let fracCenter = zodiacAxisFraction(relativeDegrees: relCenter, inverted: entry.invertZodiacOrder)
                         let xCenter = fracCenter * size.width
 
                         Text("\(zodiacSigns[k].glyph)\u{FE0E}")
@@ -264,7 +265,7 @@ struct StarPathWidgetEntryView: View {
                     }
 
                     ForEach(entry.depthSortedBodies) { pb in
-                        let x = pb.axisFraction * size.width
+                        let x = pb.axisFraction(inverted: entry.invertZodiacOrder) * size.width
                         let y = size.height / 2
 
                         widgetPlanetNode(pb: pb)
@@ -281,17 +282,8 @@ struct StarPathWidgetEntryView: View {
                     let degInSign = normalizeAngle(pb.longitude).truncatingRemainder(dividingBy: 30)
 
                     HStack(spacing: 8) {
-                        Group {
-                            if pb.id == "moon" {
-                                Image(systemName: entry.moonPhaseIcon)
-                                    .font(.system(size: 14))
-                            } else {
-                                Text("\(pb.body.symbol)\u{FE0E}")
-                                    .font(.system(size: 15))
-                            }
-                        }
-                        .foregroundStyle(pb.body.color)
-                        .frame(width: 20)
+                        WidgetPlanetSphereView(planet: pb.body, diameter: 14)
+                            .frame(width: 20)
 
                         Text(pb.body.name)
                             .font(.system(size: 12, weight: .medium))
@@ -365,57 +357,12 @@ struct StarPathWidgetEntryView: View {
     @ViewBuilder
     private func widgetPlanetNode(pb: WidgetPositionedBody) -> some View {
         if pb.body.isSun {
-            Circle()
-                .fill(
-                    RadialGradient(
-                        gradient: Gradient(colors: [
-                            Color(red: 1, green: 0.973, blue: 0.851),
-                            Color(red: 1, green: 0.851, blue: 0.553),
-                        ]),
-                        center: .init(x: 0.36, y: 0.34),
-                        startRadius: 0,
-                        endRadius: 14
-                    )
-                )
-                .frame(width: 28, height: 28)
-                .shadow(color: Color(red: 1, green: 0.808, blue: 0.459).opacity(0.6), radius: 8)
+            WidgetPlanetSphereView(planet: pb.body, diameter: 22)
         } else {
-            let fillColor = pb.body.color.mix(with: .black, by: 0.55)
-            let isMoon = pb.id == "moon"
-            ZStack {
-                Circle()
-                    .fill(fillColor)
-                    .frame(width: 18, height: 18)
-                    .overlay(
-                        Circle()
-                            .stroke(pb.body.color.opacity(0.5), lineWidth: 0.8)
-                    )
-                    .shadow(color: pb.body.color.opacity(0.3), radius: 5)
-
-                if isMoon {
-                    Image(systemName: entry.moonPhaseIcon)
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(pb.body.color)
-                        .shadow(color: .black.opacity(0.5), radius: 1, y: 0.5)
-                } else {
-                    Text("\(pb.body.symbol)\u{FE0E}")
-                        .font(.system(size: widgetSymbolSize(for: pb.body.symbol), weight: .bold))
-                        .foregroundColor(pb.body.color)
-                        .shadow(color: .black.opacity(0.5), radius: 1, y: 0.5)
-                }
-            }
+            WidgetPlanetSphereView(planet: pb.body, diameter: 14)
         }
     }
 
-    /// Normalize widget symbol sizes so all glyphs appear visually equal
-    private func widgetSymbolSize(for symbol: String) -> CGFloat {
-        switch symbol {
-        case "☽": return 13
-        case "☿": return 12
-        case "♄": return 12
-        default:  return 11
-        }
-    }
 }
 
 // MARK: - Widget Configuration

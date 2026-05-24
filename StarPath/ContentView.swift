@@ -50,7 +50,7 @@ struct ContentView: View {
 
             // Starfield
             if vm.options.showStars {
-                StarfieldView(date: vm.viewDate)
+                StarfieldView(date: vm.viewDate, topDown: vm.options.showWheel)
                     .ignoresSafeArea()
             }
 
@@ -58,27 +58,42 @@ struct ContentView: View {
             ZStack {
                 // Chart area
                 ZStack {
-                    // Drift/trend overlay
-                    if vm.options.showDrift {
-                        TrendOverlayView(
-                            trendData: vm.trendData,
+                    if vm.options.showWheel {
+                        // Heliocentric wheel view
+                        GeocentricWheelView(
                             positionedBodies: vm.positionedBodies,
-                            isVertical: true
+                            currentState: vm.currentState,
+                            helioState: vm.helioState,
+                            options: vm.options,
+                            moonPhaseIcon: vm.moonPhaseIcon,
+                            onTapBody: { bodyId in
+                                showBodyDetail(bodyId)
+                            }
+                        )
+                    } else {
+                        // Drift/trend overlay
+                        if vm.options.showDrift {
+                            TrendOverlayView(
+                                trendData: vm.trendData,
+                                positionedBodies: vm.positionedBodies,
+                                isVertical: true,
+                                invertZodiacOrder: vm.options.invertZodiacOrder
+                            )
+                        }
+
+                        // Zodiac chart with planets
+                        ZodiacChartView(
+                            positionedBodies: vm.positionedBodies,
+                            currentState: vm.currentState,
+                            options: vm.options,
+                            isVertical: true,
+                            textRotation: textRotation,
+                            moonPhaseIcon: vm.moonPhaseIcon,
+                            onTapBody: { bodyId in
+                                showBodyDetail(bodyId)
+                            }
                         )
                     }
-
-                    // Zodiac chart with planets
-                    ZodiacChartView(
-                        positionedBodies: vm.positionedBodies,
-                        currentState: vm.currentState,
-                        options: vm.options,
-                        isVertical: true,
-                        textRotation: textRotation,
-                        moonPhaseIcon: vm.moonPhaseIcon,
-                        onTapBody: { bodyId in
-                            showBodyDetail(bodyId)
-                        }
-                    )
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
@@ -124,6 +139,7 @@ struct ContentView: View {
                 HStack {
                     settingsButton
                     Spacer()
+                    wheelToggleButton
                     eventsButton
                 }
                 Spacer()
@@ -152,6 +168,7 @@ struct ContentView: View {
                 PlanetDetailView(
                     info: detail,
                     aspectEvents: aspectEvents(for: bodyId),
+                    realisticPlanets: vm.options.realisticPlanets,
                     onDismiss: {
                         dismissBodyDetail()
                     },
@@ -235,6 +252,38 @@ struct ContentView: View {
         .contentShape(.interaction, Rectangle().inset(by: -8))
     }
 
+    /// Cycles: linear → geocentric wheel → heliocentric wheel → linear
+    private var wheelToggleButton: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                if !vm.options.showWheel {
+                    // linear → geocentric
+                    vm.options.showWheel = true
+                    vm.options.heliocentricWheel = false
+                } else if !vm.options.heliocentricWheel {
+                    // geocentric → heliocentric
+                    vm.options.heliocentricWheel = true
+                } else {
+                    // heliocentric → linear
+                    vm.options.showWheel = false
+                    vm.options.heliocentricWheel = false
+                }
+                vm.update()
+                vm.saveSettings()
+            }
+        } label: {
+            Image(systemName: wheelIcon)
+                .font(.system(size: 15, weight: .medium))
+                .frame(width: 34, height: 34)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
+        .background(controlBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(controlStroke)
+        .contentShape(.interaction, Rectangle().inset(by: -8))
+    }
+
     private var eventsButton: some View {
         Button {
             vm.refreshEvents()
@@ -283,6 +332,16 @@ struct ContentView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(controlStroke)
         .contentShape(.interaction, Rectangle().inset(by: -8))
+    }
+
+    private var wheelIcon: String {
+        if !vm.options.showWheel {
+            return "circle.circle"           // linear → tap to go geocentric
+        } else if !vm.options.heliocentricWheel {
+            return "sun.max"                 // geocentric → tap to go heliocentric
+        } else {
+            return "line.horizontal.3"       // heliocentric → tap to go linear
+        }
     }
 
     private func showBodyDetail(_ bodyId: String) {
@@ -387,10 +446,13 @@ struct SettingsSheet: View {
                     Toggle("Drift Curves", isOn: $vm.options.showDrift)
                     Toggle("Timestamp", isOn: $vm.options.showTime)
                     Toggle("Moon", isOn: $vm.options.showMoon)
+                    Toggle("Realistic Planets", isOn: $vm.options.realisticPlanets)
+                    Toggle("Wheel View", isOn: $vm.options.showWheel)
                 }
 
                 Section("Zodiac") {
                     Toggle("Lock Zodiac", isOn: $vm.options.lockZodiac)
+                    Toggle("Invert Zodiac Order", isOn: $vm.options.invertZodiacOrder)
                     if vm.options.lockZodiac {
                         Picker("Center Sign", selection: $vm.options.centerSignIndex) {
                             ForEach(zodiacSigns) { sign in
@@ -398,6 +460,9 @@ struct SettingsSheet: View {
                             }
                         }
                     }
+                    Text("Flips the strip perspective so the left/right zodiac order matches the iOS Dynamic wallpaper view.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section("Widgets") {
@@ -451,8 +516,12 @@ struct SettingsSheet: View {
         .onChange(of: vm.options.showDrift) { _, _ in vm.update(); vm.saveSettings() }
         .onChange(of: vm.options.showTime) { _, _ in vm.saveSettings() }
         .onChange(of: vm.options.showMoon) { _, _ in vm.update(); vm.saveSettings() }
+        .onChange(of: vm.options.showWheel) { _, _ in vm.update(); vm.saveSettings() }
+        .onChange(of: vm.options.heliocentricWheel) { _, _ in vm.saveSettings() }
+        .onChange(of: vm.options.realisticPlanets) { _, _ in vm.saveSettings() }
         .onChange(of: vm.options.lockZodiac) { _, _ in vm.update(); vm.saveSettings() }
         .onChange(of: vm.options.centerSignIndex) { _, _ in vm.update(); vm.saveSettings() }
+        .onChange(of: vm.options.invertZodiacOrder) { _, _ in vm.update(); vm.saveSettings() }
         .sheet(isPresented: $showWidgetGuide) {
             WidgetGuideSheet()
                 .presentationDetents([.medium, .large])

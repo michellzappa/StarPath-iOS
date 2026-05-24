@@ -47,8 +47,11 @@ zodiac,astrology,planets,astronomy,ephemeris,moon phase,celestial,ecliptic,sky,c
 
 ---
 
-## What's New (for v1.0)
-Initial release.
+## What's New (for v1.15)
+- Added geocentric and heliocentric wheel views for a circular sky layout.
+- Introduced realistic planet rendering across the app and widget.
+- Added an option to invert zodiac order so the widget perspective can match the iOS Dynamic wallpaper.
+- Refined event exploration and time travel interactions.
 
 ---
 

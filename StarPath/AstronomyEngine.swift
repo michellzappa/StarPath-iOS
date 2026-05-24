@@ -285,10 +285,11 @@ func planetGeocentricLongitude(planet: String, d: Double) -> Double {
 
     let planetState = heliocentricState(planet: planet, d: d)
 
-    // Geocentric = heliocentric planet - heliocentric earth
-    let geoX = planetState.rect.x - earthRect.x
-    let geoY = planetState.rect.y - earthRect.y
-    let geoZ = planetState.rect.z - earthRect.z
+    // earthRect is the Sun's geocentric position (S − E), not Earth's heliocentric.
+    // planet_geo = planet_helio + sun_geo = (P−S) + (S−E) = P − E
+    let geoX = planetState.rect.x + earthRect.x
+    let geoY = planetState.rect.y + earthRect.y
+    let geoZ = planetState.rect.z + earthRect.z
 
     let geoSph = sphericalFromRectangular(RectCoord(x: geoX, y: geoY, z: geoZ))
     return geoSph.lon
@@ -301,9 +302,9 @@ func planetGeocentricDistance(planet: String, d: Double) -> Double {
     let earthRect = rectangularFromElements(orbitalElements(for: "earth", d: d))
     let planetState = heliocentricState(planet: planet, d: d)
 
-    let geoX = planetState.rect.x - earthRect.x
-    let geoY = planetState.rect.y - earthRect.y
-    let geoZ = planetState.rect.z - earthRect.z
+    let geoX = planetState.rect.x + earthRect.x
+    let geoY = planetState.rect.y + earthRect.y
+    let geoZ = planetState.rect.z + earthRect.z
 
     return sqrt(geoX * geoX + geoY * geoY + geoZ * geoZ)
 }
@@ -381,6 +382,58 @@ struct GeocentricState {
         default: return 0
         }
     }
+}
+
+// MARK: - Complete Heliocentric State
+
+struct HeliocentricState {
+    let earth: Double
+    let mercury: Double
+    let venus: Double
+    let mars: Double
+    let jupiter: Double
+    let saturn: Double
+    let uranus: Double
+    let neptune: Double
+
+    func longitude(for bodyId: String) -> Double {
+        switch bodyId {
+        case "earth": return earth
+        case "mercury": return mercury
+        case "venus": return venus
+        case "mars": return mars
+        case "jupiter": return jupiter
+        case "saturn": return saturn
+        case "uranus": return uranus
+        case "neptune": return neptune
+        default: return 0
+        }
+    }
+}
+
+func heliocentricLongitudes(for date: Date) -> HeliocentricState {
+    let d = daysSinceJ2000(date)
+
+    // Earth's heliocentric longitude is opposite to the Sun's geocentric longitude
+    let sunLon = sunGeocentricLongitude(d: d).lon
+    let earthLon = normalizeAngle(sunLon + 180)
+
+    let planets = ["mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]
+    var lons: [String: Double] = [:]
+    for p in planets {
+        lons[p] = heliocentricState(planet: p, d: d).sph.lon
+    }
+
+    return HeliocentricState(
+        earth: earthLon,
+        mercury: lons["mercury"]!,
+        venus: lons["venus"]!,
+        mars: lons["mars"]!,
+        jupiter: lons["jupiter"]!,
+        saturn: lons["saturn"]!,
+        uranus: lons["uranus"]!,
+        neptune: lons["neptune"]!
+    )
 }
 
 // MARK: - Moon Phase

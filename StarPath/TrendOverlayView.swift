@@ -13,6 +13,7 @@ struct TrendOverlayView: View {
     let trendData: TrendData?
     let positionedBodies: [PositionedBody]
     let isVertical: Bool
+    let invertZodiacOrder: Bool
 
     private let waveSpanPx: Double = 132
 
@@ -67,10 +68,11 @@ struct TrendOverlayView: View {
         }
 
         func yAtRel(_ rel: Double) -> Double {
-            ((rel + 180) / 360) * h
+            zodiacAxisFraction(relativeDegrees: rel, inverted: invertZodiacOrder) * h
         }
 
         let centerX = xAt(centerIndex)
+        let waveDirection = invertZodiacOrder ? 1.0 : -1.0
 
         // Vertical time axis
         drawLine(context: context,
@@ -100,7 +102,7 @@ struct TrendOverlayView: View {
 
             var path = Path()
             for (i, rel) in values.enumerated() {
-                let waveY = anchorY - ((waveFromRel(rel) - anchorWave) / 100) * waveSpanPx
+                let waveY = anchorY + waveDirection * ((waveFromRel(rel) - anchorWave) / 100) * waveSpanPx
                 let point = CGPoint(x: xAt(i), y: waveY)
                 if i == 0 {
                     path.move(to: point)
@@ -137,10 +139,11 @@ struct TrendOverlayView: View {
         }
 
         func xAtRel(_ rel: Double) -> Double {
-            ((rel + 180) / 360) * w
+            zodiacAxisFraction(relativeDegrees: rel, inverted: invertZodiacOrder) * w
         }
 
         let centerY = yAt(centerIndex)
+        let waveDirection = invertZodiacOrder ? -1.0 : 1.0
 
         // Horizontal time axis
         drawLine(context: context,
@@ -169,7 +172,7 @@ struct TrendOverlayView: View {
 
             var path = Path()
             for (i, rel) in values.enumerated() {
-                let waveX = anchorX + ((waveFromRel(rel) - anchorWave) / 100) * waveSpanPx
+                let waveX = anchorX + waveDirection * ((waveFromRel(rel) - anchorWave) / 100) * waveSpanPx
                 let point = CGPoint(x: waveX, y: yAt(i))
                 if i == 0 {
                     path.move(to: point)

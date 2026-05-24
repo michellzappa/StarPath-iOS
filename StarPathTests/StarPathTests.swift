@@ -44,6 +44,23 @@ struct StarPathTests {
         #expect(vm.upcomingEvents.allSatisfy { $0.date >= startOfDay })
     }
 
+    @Test func invertedZodiacOrderFlipsAxisMappingAndPersists() async throws {
+        let suiteName = "StarPathTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        #expect(zodiacAxisFraction(relativeDegrees: 90, inverted: false) == 0.75)
+        #expect(zodiacAxisFraction(relativeDegrees: 90, inverted: true) == 0.25)
+
+        let vm = StarPathViewModel(userDefaults: defaults, startsLiveUpdates: false)
+        vm.options.invertZodiacOrder = true
+        vm.saveSettings()
+
+        let reloaded = StarPathViewModel(userDefaults: defaults, startsLiveUpdates: false)
+        #expect(reloaded.options.invertZodiacOrder)
+    }
+
     private func makeViewModel(initialDate: Date = Date()) -> (StarPathViewModel, () -> Void) {
         let suiteName = "StarPathTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
