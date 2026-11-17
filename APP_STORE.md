@@ -56,10 +56,13 @@ zodiac,astrology,planets,astronomy,ephemeris,moon phase,celestial,ecliptic,sky,c
 ---
 
 ## Support URL
-https://www.aesthetichermetics.com
+https://www.michellzappa.com/apps/starpath/support
 
 ## Marketing URL
-https://www.aesthetichermetics.com
+https://www.michellzappa.com/apps/starpath
+
+## Privacy Policy URL
+https://www.michellzappa.com/apps/starpath/privacy
 
 ---
 
